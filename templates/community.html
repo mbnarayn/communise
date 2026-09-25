@@ -129,7 +129,7 @@
                 {% if feature_flags.get('website', True) and listing.website %}
                   <li>
                     <strong>Website:</strong>
-                    <a href="{{ listing.website }}" target="_blank" rel="noreferrer" onclick="event.stopPropagation();">Visit</a>
+                    <a href="{{ listing.website | external_url }}" target="_blank" rel="noreferrer" onclick="event.stopPropagation();">Visit</a>
                   </li>
                 {% endif %}
               </ul>

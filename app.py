@@ -58,6 +58,15 @@ CATEGORY_OPTIONS = [
     "Other",
 ]
 LISTINGS_PER_PAGE = 16
+DAYS_OF_WEEK = (
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+)
 
 # Simple per-page overrides for listing cards. Update these booleans to decide
 # which listing features appear on the homepage vs the community pages.
@@ -96,6 +105,14 @@ def normalize_community(value):
     return COMMUNITY_ALIASES.get(community, community or DEFAULT_COMMUNITY)
 
 
+@app.template_filter('external_url')
+def external_url(value):
+    url = str(value or '').strip()
+    if url and not url.startswith(('http://', 'https://')):
+        return f'https://{url}'
+    return url
+
+
 def get_community_label(community):
     if community in (None, '', 'all'):
         return 'Featured listings'
@@ -115,6 +132,23 @@ def get_community_template(community):
 def get_listing_feature_config(page_name):
     page = str(page_name or "home").lower()
     return LISTING_FEATURES.get(page, LISTING_FEATURES["home"]).copy()
+
+
+def parse_opening_hours(form, existing=None):
+    periods = {}
+    has_daily_hours = False
+    for day in DAYS_OF_WEEK:
+        day_periods = []
+        for period_number in (1, 2):
+            opening = (form.get(f'opening_{day}_{period_number}_open') or '').strip()
+            closing = (form.get(f'opening_{day}_{period_number}_close') or '').strip()
+            if opening or closing:
+                has_daily_hours = True
+            if opening and closing:
+                day_periods.append({'open': opening, 'close': closing})
+        periods[day] = day_periods
+
+    return periods if has_daily_hours else (existing or '')
 
 
 def paginate_listings(listings, requested_page):
@@ -424,6 +458,20 @@ def save_listings(listings):
         json.dump(normalized_items, file, indent=2)
 
 
+def delete_listing_record(listings, listing):
+    if is_cosmos_configured():
+        container = get_cosmos_container()
+        if container is not None:
+            container.delete_item(
+                item=str(listing.get('id')),
+                partition_key=listing.get('category'),
+            )
+            return
+
+    listings.remove(listing)
+    save_listings(listings)
+
+
 def store_logo(upload, listing_id):
     if not upload or not upload.filename:
         return ""
@@ -444,9 +492,16 @@ def store_logo(upload, listing_id):
     account_url = os.getenv("AZURE_STORAGE_ACCOUNT_URL")
     container_name = os.getenv("AZURE_STORAGE_CONTAINER", "listing-logos")
     if account_url:
-        if not BlobServiceClient or not DefaultAzureCredential:
+        if not BlobServiceClient:
             raise RuntimeError("Azure Blob Storage dependencies are not installed.")
-        client = BlobServiceClient(account_url=account_url, credential=DefaultAzureCredential())
+        storage_key = os.getenv("AZURE_STORAGE_ACCOUNT_KEY")
+        if storage_key:
+            credential = storage_key
+        else:
+            if not DefaultAzureCredential:
+                raise RuntimeError("Azure identity dependencies are not installed.")
+            credential = DefaultAzureCredential()
+        client = BlobServiceClient(account_url=account_url, credential=credential)
         blob_client = client.get_blob_client(container=container_name, blob=blob_name)
         blob_client.upload_blob(
             upload.stream,
@@ -558,7 +613,7 @@ def add_listing():
         whatsapp_group = whatsapp_group.strip()
         community = normalize_community(request.form.get('community') or selected_community)
         sub_community = request.form.get('sub_community', '').strip()
-        opening_hours = request.form.get('opening_hours', '').strip()
+        opening_hours = parse_opening_hours(request.form)
         additional_information = request.form.get('additional_information', '').strip()
         deals = request.form.get('deals', '').strip()
         logo = request.files.get('logo')
@@ -635,6 +690,16 @@ def add_listing():
 
 @app.route('/listing/<listing_id>/edit', methods=['GET', 'POST'])
 def edit_listing(listing_id):
+    admin_mode = request.args.get('admin') == '1'
+    if admin_mode:
+        auth = request.authorization
+        if not auth or auth.username != ADMIN_USERNAME or auth.password != ADMIN_PASSWORD:
+            return Response(
+                "Authentication required.",
+                401,
+                {"WWW-Authenticate": 'Basic realm="Admin Area"'},
+            )
+
     listings = load_listings()
     listing = next((item for item in listings if str(item.get('id')) == str(listing_id)), None)
     if listing is None:
@@ -673,7 +738,7 @@ def edit_listing(listing_id):
             'whatsapp_group': (request.form.get('whatsapp_group') or request.form.get('whatsappgroup') or '').strip(),
             'community': community,
             'sub_community': request.form.get('sub_community', '').strip(),
-            'opening_hours': request.form.get('opening_hours', '').strip(),
+            'opening_hours': parse_opening_hours(request.form, listing.get('opening_hours')),
             'additional_information': request.form.get('additional_information', '').strip(),
             'deals': request.form.get('deals', '').strip(),
         }
@@ -693,16 +758,23 @@ def edit_listing(listing_id):
                 selected_community=community,
             )
 
-        listing['pending_changes'] = updated_values
-        listing['pending_action'] = 'edit'
+        if admin_mode:
+            listing.update(updated_values)
+            listing.pop('pending_changes', None)
+            listing['approved'] = True
+            listing['pending_action'] = ''
+        else:
+            listing['pending_changes'] = updated_values
+            listing['pending_action'] = 'edit'
         save_listings(listings)
-        return redirect(url_for('index'))
+        return redirect(url_for('admin' if admin_mode else 'index'))
 
     return render_template(
         'add_listing.html',
         form=listing,
         listing=listing,
         editing=True,
+        admin_mode=admin_mode,
         communities=communities,
         selected_community=selected_community,
     )
@@ -749,6 +821,7 @@ def listing_detail(listing_id):
 @app.route('/admin')
 @requires_auth
 def admin():
+    query = request.args.get('q', '').strip().lower()
     field_labels = {
         'name': 'Name',
         'category': 'Category',
@@ -767,11 +840,11 @@ def admin():
         'deals': 'Deals / special promotions',
         'logo_url': 'Logo',
     }
+    existing = []
     pending = []
     for item in load_listings():
-        if item.get('approved', True) and not item.get('pending_action'):
-            continue
         review_item = dict(item)
+        has_pending_work = not item.get('approved', True) or bool(item.get('pending_action'))
         if item.get('pending_action') == 'edit':
             pending_changes = item.get('pending_changes') or {}
             review_item['pending_diff'] = [
@@ -784,8 +857,61 @@ def admin():
                 if value != item.get(field)
             ]
             review_item.update(pending_changes)
-        pending.append(review_item)
-    return render_template('admin.html', listings=pending)
+
+        matches_query = not query or any(
+            query in str(review_item.get(field, '')).lower()
+            for field in ('name', 'category', 'description', 'address', 'phone', 'website', 'community')
+        )
+        if has_pending_work:
+            pending.append(review_item)
+        elif query and matches_query:
+            existing.append(review_item)
+
+    admin_sections = [
+        {
+            'kind': 'existing',
+            'heading': 'Manage existing listings',
+            'description': 'Search and manage published listings directly.',
+            'listings': existing,
+        },
+        {
+            'kind': 'pending',
+            'heading': 'Approve new and changed listings',
+            'description': 'Review new submissions and pending edits or deletions.',
+            'listings': pending,
+        },
+    ]
+    return render_template('admin.html', admin_sections=admin_sections, query=query)
+
+
+@app.route('/admin/listing/<listing_id>/delete', methods=['POST'])
+@requires_auth
+def admin_delete_listing(listing_id):
+    listings = load_listings()
+    listing = next((item for item in listings if str(item.get('id')) == str(listing_id)), None)
+    if listing is not None:
+        delete_listing_record(listings, listing)
+    return redirect(url_for('admin'))
+
+
+@app.route('/admin/listing/<listing_id>/feature/<scope>', methods=['POST'])
+@requires_auth
+def toggle_listing_feature(listing_id, scope):
+    feature_fields = {
+        'homepage': 'homepagefeatured',
+        'community': 'communitypagefeatured',
+    }
+    field = feature_fields.get(scope)
+    if not field:
+        return redirect(url_for('admin'))
+
+    listings = load_listings()
+    for item in listings:
+        if str(item.get('id')) == str(listing_id):
+            item[field] = not bool(item.get(field, False))
+            save_listings(listings)
+            break
+    return redirect(url_for('admin'))
 
 
 @app.route('/admin/approve/<listing_id>', methods=['POST'])
@@ -795,8 +921,7 @@ def approve_listing(listing_id):
     for item in listings:
         if str(item.get('id')) == str(listing_id):
             if item.get('pending_action', 'add') == 'delete':
-                listings.remove(item)
-                save_listings(listings)
+                delete_listing_record(listings, item)
                 return redirect(url_for('admin'))
             if item.get('pending_action') == 'edit':
                 item.update(item.pop('pending_changes', {}))

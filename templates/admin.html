@@ -21,11 +21,19 @@
 
     <main class="container form-page">
       <section class="admin-card form-card">
-        <h1>Pending listings</h1>
-        <p>Review new submissions before they appear on the public directory.</p>
+        {% for section in admin_sections %}
+          <section class="admin-section">
+            <h1>{{ section.heading }}</h1>
+            <p>{{ section.description }}</p>
+            {% if section.kind == 'existing' %}
+              <form class="search-form admin-search" method="GET" action="{{ url_for('admin') }}">
+                <input type="search" name="q" value="{{ query or '' }}" placeholder="Search all listings" aria-label="Search all listings" />
+                <button type="submit" class="secondary-btn">Search</button>
+              </form>
+            {% endif %}
 
-        {% if listings %}
-          {% for listing in listings %}
+            {% if section.listings %}
+              {% for listing in section.listings %}
             <article class="admin-item detail-card">
               <div class="detail-layout">
                 <div class="detail-content">
@@ -35,9 +43,9 @@
                         <p class="eyebrow">Pending review</p>
                         <div class="tag detail-category">{{ listing.category }}</div>
                       </div>
-                      {% set review_action = listing.pending_action or 'add' %}
+                      {% set review_action = listing.pending_action or ('current' if section.kind == 'existing' else 'add') %}
                       <div class="review-action review-action-{{ review_action }}">
-                        {{ review_action|capitalize }} Listing
+                        {% if review_action == 'current' %}Published Listing{% else %}{{ review_action|capitalize }} Listing{% endif %}
                       </div>
                       {% if review_action in ['edit', 'delete'] %}
                         <p class="review-note">The current approved listing remains visible until this request is resolved.</p>
@@ -65,7 +73,7 @@
                   <div class="detail-grid">
                   {% for label, value in [
                     ('Community', listing.community),
-                    ('Sub community', listing.sub_community),
+                    ('Subcommunity', listing.sub_community),
                     ('Address', listing.address),
                     ('Phone', listing.phone),
                     ('Website', listing.website),
@@ -107,18 +115,32 @@
               </div>
 
               <div class="detail-actions admin-actions">
-                <form method="POST" action="{{ url_for('approve_listing', listing_id=listing.id) }}">
-                  <button type="submit" class="primary-btn small-btn">Approve</button>
+                <a class="edit-listing-button" href="{{ url_for('edit_listing', listing_id=listing.id, admin='1') }}">Edit Listing</a>
+                <form method="POST" action="{{ url_for('admin_delete_listing', listing_id=listing.id) }}">
+                  <button type="submit" class="delete-listing-button">Delete Listing</button>
                 </form>
-                <form method="POST" action="{{ url_for('reject_listing', listing_id=listing.id) }}">
-                  <button type="submit" class="danger-btn">Reject</button>
+                <form method="POST" action="{{ url_for('toggle_listing_feature', listing_id=listing.id, scope='homepage') }}">
+                  <button type="submit" class="secondary-btn small-btn">{% if listing.homepagefeatured %}Unfeature Homepage{% else %}Feature Homepage{% endif %}</button>
                 </form>
+                <form method="POST" action="{{ url_for('toggle_listing_feature', listing_id=listing.id, scope='community') }}">
+                  <button type="submit" class="secondary-btn small-btn">{% if listing.communitypagefeatured %}Unfeature Community{% else %}Feature Community{% endif %}</button>
+                </form>
+                {% if review_action in ['add', 'edit', 'delete'] %}
+                  <form method="POST" action="{{ url_for('approve_listing', listing_id=listing.id) }}">
+                    <button type="submit" class="primary-btn small-btn">Approve</button>
+                  </form>
+                  <form method="POST" action="{{ url_for('reject_listing', listing_id=listing.id) }}">
+                    <button type="submit" class="danger-btn">Reject</button>
+                  </form>
+                {% endif %}
               </div>
             </article>
-          {% endfor %}
-        {% else %}
-          <p class="empty-state">No pending listings.</p>
-        {% endif %}
+              {% endfor %}
+            {% else %}
+              <p class="empty-state">{% if section.kind == 'existing' %}No matching listings.{% else %}No listings awaiting approval.{% endif %}</p>
+            {% endif %}
+          </section>
+        {% endfor %}
       </section>
     </main>
   </body>

@@ -38,6 +38,25 @@ class AppTests(unittest.TestCase):
         self.assertIn(b'Education', response.data)
         self.assertIn(b'Tutors, Training Providers', response.data)
 
+    def test_daily_opening_hours_are_stored_as_periods(self):
+        self.client.post('/add', data={
+            'name': 'Daily Hours Test',
+            'category': 'Education',
+            'description': 'A tutor with daily hours.',
+            'address': 'Hours Lane',
+            'opening_monday_1_open': '09:00',
+            'opening_monday_1_close': '17:00',
+            'opening_thursday_1_open': '09:00',
+            'opening_thursday_1_close': '12:00',
+            'opening_thursday_2_open': '13:00',
+            'opening_thursday_2_close': '18:00',
+        })
+
+        from app import load_listings
+        listing = next(item for item in load_listings() if item.get('name') == 'Daily Hours Test')
+        self.assertEqual(listing['opening_hours']['monday'][0], {'open': '09:00', 'close': '17:00'})
+        self.assertEqual(len(listing['opening_hours']['thursday']), 2)
+
     def test_home_page_prioritizes_featured_listings_and_shows_all_communities(self):
         save_listings([
             *get_seed_data(),
@@ -173,6 +192,24 @@ class AppTests(unittest.TestCase):
 
         public_response = self.client.get('/')
         self.assertIn(b'Admin Approval Test Shop', public_response.data)
+
+    def test_admin_shows_only_pending_listings_and_supports_search(self):
+        auth_headers = {'Authorization': 'Basic YWRtaW46Y2hhbmdlLW1l'}
+        response = self.client.get('/admin', headers=auth_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b'Maple Cafe', response.data)
+
+        self.client.post('/add', data={
+            'name': 'Pending Search Listing',
+            'category': 'Education',
+            'description': 'A pending tutor listing',
+            'address': 'Search Lane',
+        })
+        response = self.client.get('/admin?q=tutor', headers=auth_headers)
+        self.assertIn(b'Pending Search Listing', response.data)
+
+        response = self.client.get('/admin?q=Maple', headers=auth_headers)
+        self.assertIn(b'Maple Cafe', response.data)
 
     def test_contact_button_tracks_usage(self):
         self.client.post('/add', data={
@@ -367,6 +404,42 @@ class AppTests(unittest.TestCase):
 
         self.client.post('/admin/approve/1', headers=auth_headers)
         self.assertFalse(any(item.get('id') == '1' for item in load_listings()))
+
+    @patch('app.get_cosmos_container')
+    @patch('app.is_cosmos_configured', return_value=True)
+    def test_cosmos_listing_delete_uses_id_and_category_partition_key(self, cosmos_configured, get_container):
+        container = get_container.return_value
+        from app import delete_listing_record
+
+        listing = {'id': '42', 'category': 'Education'}
+        delete_listing_record([listing], listing)
+
+        container.delete_item.assert_called_once_with(item='42', partition_key='Education')
+
+    def test_admin_can_edit_directly_and_toggle_featured_state(self):
+        auth_headers = {'Authorization': 'Basic YWRtaW46Y2hhbmdlLW1l'}
+        edit_page = self.client.get('/listing/1/edit?admin=1', headers=auth_headers)
+        self.assertEqual(edit_page.status_code, 200)
+        self.assertIn(b'Edit listing (Admin)', edit_page.data)
+
+        response = self.client.post('/listing/1/edit?admin=1', data={
+            'community': 'miltonkeynes',
+            'name': 'Admin Updated Maple Cafe',
+            'category': 'Food',
+            'description': 'Updated directly by admin.',
+            'address': '1 Admin Lane',
+        }, headers=auth_headers)
+        self.assertEqual(response.status_code, 302)
+
+        from app import load_listings
+        listing = next(item for item in load_listings() if item.get('id') == '1')
+        self.assertEqual(listing.get('name'), 'Admin Updated Maple Cafe')
+        self.assertTrue(listing.get('approved'))
+        self.assertEqual(listing.get('pending_action'), '')
+
+        self.client.post('/admin/listing/1/feature/homepage', headers=auth_headers)
+        listing = next(item for item in load_listings() if item.get('id') == '1')
+        self.assertFalse(listing.get('homepagefeatured'))
 
     def test_listing_detail_view_increments_usage_each_time(self):
         from app import load_listings

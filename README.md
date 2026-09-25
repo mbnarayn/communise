@@ -42,6 +42,24 @@ authentication and uploads logos to Blob Storage. The App Service identity
 needs the `Storage Blob Data Contributor` role on the storage account, and the
 container must already exist.
 
+For local managed-identity-style authentication, sign in with:
+
+```bash
+az login
+```
+
+Uploaded logos are stored at `listing-logos/<listing-id>/logo.<extension>`.
+
+For local testing or environments without managed identity, you can provide a
+storage account key instead:
+
+```bash
+export AZURE_STORAGE_ACCOUNT_KEY=<storage-account-key>
+```
+
+When the key is present, it takes precedence over managed identity. Store it
+in a secret manager and rotate it regularly; do not commit it to source control.
+
 ## Use Azure Cosmos DB
 
 To switch the app to Azure Cosmos DB, add the following environment variables before running the app:

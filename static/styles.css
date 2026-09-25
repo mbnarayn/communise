@@ -429,6 +429,44 @@ nav a {
   border-top: 1px solid var(--border);
 }
 
+.hours-editor {
+  display: grid;
+  gap: 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.hours-editor legend {
+  padding: 0 0.3rem;
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.hours-editor small {
+  color: var(--muted);
+}
+
+.hours-row {
+  display: grid;
+  grid-template-columns: 90px minmax(90px, 1fr) auto minmax(90px, 1fr) minmax(90px, 1fr) auto minmax(90px, 1fr);
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+}
+
+.hours-display {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+}
+
+.hours-display-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .details-cta {
   color: var(--primary);
   font-size: 0.85rem;
@@ -824,6 +862,11 @@ select {
 
 .admin-card {
   max-width: 900px;
+}
+
+.admin-search {
+  max-width: 520px;
+  margin: 1rem 0 1.25rem;
 }
 
 .admin-item {
