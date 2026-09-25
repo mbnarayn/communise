@@ -15,8 +15,8 @@
           {% for community in communities %}
             {% if community.slug == 'miltonkeynes' %}
               <a href="{{ url_for('milton_keynes_page') }}">{{ community.label }}</a>
-            {% elif community.slug == 'bedford' %}
-              <a href="{{ url_for('bedford_page') }}">{{ community.label }}</a>
+            {% elif community.slug == 'woking' %}
+              <a href="{{ url_for('woking_page') }}">{{ community.label }}</a>
             {% elif community.slug == 'buckingham' %}
               <a href="{{ url_for('buckingham_page') }}">{{ community.label }}</a>
             {% endif %}
@@ -57,7 +57,7 @@
 
       <section class="directory-header">
         <div class="directory-header-row">
-          <h2>{{ community_label }} Listings</h2>
+          <h2>Featured Listings Across All Communities/Areas</h2>
           <form class="search-form" method="GET" action="{{ url_for('index') }}">
             <input
               type="search"
@@ -76,8 +76,8 @@
         {% for community in communities %}
           {% if community.slug == 'miltonkeynes' %}
             <a href="{{ url_for('milton_keynes_page', q=query, category=category) }}" class="tab {% if selected_community == 'mk' %}active{% endif %}">{{ community.label }}</a>
-          {% elif community.slug == 'bedford' %}
-            <a href="{{ url_for('bedford_page', q=query, category=category) }}" class="tab {% if selected_community == 'bedford' %}active{% endif %}">{{ community.label }}</a>
+          {% elif community.slug == 'woking' %}
+            <a href="{{ url_for('woking_page', q=query, category=category) }}" class="tab {% if selected_community == 'woking' %}active{% endif %}">{{ community.label }}</a>
           {% elif community.slug == 'buckingham' %}
             <a href="{{ url_for('buckingham_page', q=query, category=category) }}" class="tab {% if selected_community == 'buckingham' %}active{% endif %}">{{ community.label }}</a>
           {% endif %}

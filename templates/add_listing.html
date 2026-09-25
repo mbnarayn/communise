@@ -46,8 +46,39 @@
 
           <label>
             Category
-            <input type="text" name="category" value="{{ form.category if form and form.category else '' }}" placeholder="e.g. Shop, Coffee, Services" required />
+            <select name="category" required>
+              <option value="">Choose a category</option>
+              {% for category in ['Services', 'Lifestyle', 'Food', 'Shopping', 'Recreation', 'Other'] %}
+                <option value="{{ category }}" {% if form and form.category == category %}selected{% endif %}>{{ category }}</option>
+              {% endfor %}
+            </select>
           </label>
+
+          <div class="category-guide" aria-label="Category examples">
+            <p class="category-guide-title">Choose the category that best fits your listing.</p>
+            <div class="category-guide-grid">
+              <div>
+                <strong>Services</strong>
+                <span>Home Services, Professional Services, Automotive Services, Repairs &amp; Maintenance</span>
+              </div>
+              <div>
+                <strong>Lifestyle</strong>
+                <span>Beauty &amp; Personal Care, Health &amp; Wellness, Fashion, Spa &amp; Relaxation</span>
+              </div>
+              <div>
+                <strong>Food</strong>
+                <span>Restaurants, Cafes, Takeaways, Bakeries, Bars &amp; Pubs</span>
+              </div>
+              <div>
+                <strong>Shopping</strong>
+                <span>Retail Stores, Electronics, Home &amp; Garden, Gifts &amp; Specialty Shops</span>
+              </div>
+              <div>
+                <strong>Recreation</strong>
+                <span>Sports Clubs, Dance Schools, Gyms &amp; Fitness, Martial Arts, Children's Activities, Arts &amp; Hobbies</span>
+              </div>
+            </div>
+          </div>
 
           <label>
             Description

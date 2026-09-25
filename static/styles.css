@@ -411,6 +411,42 @@ label {
   font-weight: 600;
 }
 
+.category-guide {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fbf8;
+}
+
+.category-guide-title {
+  margin: 0 0 0.8rem;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.category-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.category-guide-grid div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.category-guide-grid strong {
+  color: var(--primary-dark);
+  font-size: 0.88rem;
+}
+
+.category-guide-grid span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 input,
 textarea {
   width: 100%;
@@ -423,6 +459,15 @@ textarea {
 
 textarea {
   resize: vertical;
+}
+
+select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.8rem 0.9rem;
+  font: inherit;
+  background: #fff;
 }
 
 .error-banner {

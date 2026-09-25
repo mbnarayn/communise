@@ -15,8 +15,8 @@
           {% for community in communities %}
             {% if community.slug == 'miltonkeynes' %}
               <a href="{{ url_for('milton_keynes_page') }}">{{ community.label }}</a>
-            {% elif community.slug == 'bedford' %}
-              <a href="{{ url_for('bedford_page') }}">{{ community.label }}</a>
+            {% elif community.slug == 'woking' %}
+              <a href="{{ url_for('woking_page') }}">{{ community.label }}</a>
             {% elif community.slug == 'buckingham' %}
               <a href="{{ url_for('buckingham_page') }}">{{ community.label }}</a>
             {% endif %}

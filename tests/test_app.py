@@ -50,7 +50,7 @@ class AppTests(unittest.TestCase):
 
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Bedford', response.data)
+        self.assertIn(b'Woking', response.data)
         self.assertIn(b'Buckingham', response.data)
         self.assertIn(b'Featured listings', response.data)
         self.assertNotIn(b'Hidden Listing', response.data)
@@ -61,16 +61,16 @@ class AppTests(unittest.TestCase):
         self.assertIn(b'Milton Keynes', response.data)
         self.assertIn(b'Maple Cafe', response.data)
 
-    def test_bedford_community_route_shows_bedford_listings(self):
-        response = self.client.get('/bedford')
+    def test_woking_community_route_shows_woking_listings(self):
+        response = self.client.get('/woking')
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Bedford', response.data)
-        self.assertIn(b'Bedford Market Hall', response.data)
+        self.assertIn(b'Woking', response.data)
+        self.assertIn(b'Woking Market Hall', response.data)
 
     def test_can_submit_listing(self):
         response = self.client.post('/add', data={
             'name': 'Corner Market Pending Test',
-            'category': 'Shop',
+            'category': 'Shopping',
             'description': 'Fresh produce and essentials',
             'address': '12 Maple Ave',
             'phone': '555-0101',
@@ -83,7 +83,7 @@ class AppTests(unittest.TestCase):
     def test_admin_can_approve_listing(self):
         self.client.post('/add', data={
             'name': 'Admin Approval Test Shop',
-            'category': 'Shop',
+            'category': 'Shopping',
             'description': 'Fresh produce and essentials',
             'address': '99 Approval Lane',
             'phone': '555-0199',
@@ -109,7 +109,7 @@ class AppTests(unittest.TestCase):
     def test_contact_button_tracks_usage(self):
         self.client.post('/add', data={
             'name': 'Contact Count Test Shop',
-            'category': 'Shop',
+            'category': 'Shopping',
             'description': 'Fresh produce and essentials',
             'address': '55 Contact Road',
             'phone': '555-0109',
@@ -130,7 +130,7 @@ class AppTests(unittest.TestCase):
     def test_contact_click_is_only_counted_once_per_session(self):
         self.client.post('/add', data={
             'name': 'Single Session Count Test Shop',
-            'category': 'Shop',
+            'category': 'Shopping',
             'description': 'Fresh produce and essentials',
             'address': '42 Session Road',
             'phone': '555-0118',
@@ -168,7 +168,7 @@ class AppTests(unittest.TestCase):
             {
                 'id': 100,
                 'name': 'Home Only Listing',
-                'category': 'Shop',
+                'category': 'Shopping',
                 'description': 'Visible on the homepage only.',
                 'address': '1 Home Lane',
                 'community': 'miltonkeynes',
@@ -179,7 +179,7 @@ class AppTests(unittest.TestCase):
             {
                 'id': 101,
                 'name': 'Community Only Listing',
-                'category': 'Shop',
+                'category': 'Shopping',
                 'description': 'Visible on the community page only.',
                 'address': '2 Community Lane',
                 'community': 'miltonkeynes',
@@ -200,7 +200,7 @@ class AppTests(unittest.TestCase):
     def test_add_listing_stores_extended_business_fields(self):
         response = self.client.post('/add', data={
             'name': 'Extended Profile Shop',
-            'category': 'Shop',
+            'category': 'Shopping',
             'description': 'Fresh produce and local goods',
             'address': '89 Market Road',
             'phone_number': '555-1234',
@@ -209,7 +209,7 @@ class AppTests(unittest.TestCase):
             'instagram': '@extendedshop',
             'facebook': 'Extended Shop',
             'whatsapp_group': 'https://chat.whatsapp.com/example',
-            'community': 'bedford',
+            'community': 'woking',
             'sub_community': 'Town Centre',
             'opening_hours': 'Mon-Sat 9am-5pm',
             'additional_information': 'Family-owned local business',

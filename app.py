@@ -22,19 +22,27 @@ COMMUNITY_ALIASES = {
     "mk": "miltonkeynes",
     "miltonkeys": "miltonkeynes",
     "miltonkeynes": "miltonkeynes",
-    "bedford": "bedford",
+    "woking": "woking",
     "buckingham": "buckingham",
 }
 COMMUNITY_LABELS = {
     "miltonkeynes": "Milton Keynes",
-    "bedford": "Bedford",
+    "woking": "Woking",
     "buckingham": "Buckingham",
 }
 COMMUNITY_TEMPLATES = {
     "miltonkeynes": "community.html",
-    "bedford": "community.html",
+    "woking": "community.html",
     "buckingham": "community.html",
 }
+CATEGORY_OPTIONS = [
+    "Services",
+    "Lifestyle",
+    "Food",
+    "Shopping",
+    "Recreation",
+    "Other",
+]
 
 # Simple per-page overrides for listing cards. Update these booleans to decide
 # which listing features appear on the homepage vs the community pages.
@@ -139,7 +147,7 @@ def get_seed_data():
         normalize_listing({
             "id": 1,
             "name": "Maple Cafe",
-            "category": "Food & Drink",
+            "category": "Food",
             "description": "Cozy neighborhood coffee shop with fresh pastries and free Wi-Fi.",
             "address": "15 Maple Street",
             "phone": "555-0142",
@@ -160,7 +168,7 @@ def get_seed_data():
         normalize_listing({
             "id": 2,
             "name": "Oak Pharmacy",
-            "category": "Essential Services",
+            "category": "Services",
             "description": "Local pharmacy offering prescriptions, wellness products, and advice.",
             "address": "8 Oak Lane",
             "phone": "555-0189",
@@ -174,7 +182,7 @@ def get_seed_data():
         normalize_listing({
             "id": 3,
             "name": "River Fitness",
-            "category": "Amenities",
+            "category": "Recreation",
             "description": "Gym and fitness studio with classes, lockers, and personal training.",
             "address": "44 River Road",
             "phone": "555-0112",
@@ -186,13 +194,13 @@ def get_seed_data():
         }),
         normalize_listing({
             "id": 4,
-            "name": "Bedford Market Hall",
-            "category": "Shop",
+            "name": "Woking Market Hall",
+            "category": "Shopping",
             "description": "A busy local food and crafts market with weekly seasonal stalls.",
-            "address": "27 High Street, Bedford",
+            "address": "27 High Street, Woking",
             "phone": "555-0201",
-            "website": "https://example.com/bedfordmarket",
-            "community": "bedford",
+            "website": "https://example.com/wokingmarket",
+            "community": "woking",
             "homepagefeatured": True,
             "communitypagefeatured": True,
             "usage_count": 0,
@@ -200,7 +208,7 @@ def get_seed_data():
         normalize_listing({
             "id": 5,
             "name": "Buckingham Library Hub",
-            "category": "Amenities",
+            "category": "Lifestyle",
             "description": "Community library, reading café, and free Wi-Fi for local residents.",
             "address": "10 Castle Street, Buckingham",
             "phone": "555-0202",
@@ -324,8 +332,7 @@ def filter_listings(
 
 
 def get_categories(listings):
-    categories = sorted({str(item.get('category', '')).strip() for item in listings if item.get('category') and item.get('approved', True)})
-    return ['All'] + categories
+    return ['All'] + CATEGORY_OPTIONS.copy()
 
 
 def load_listings(community=None):
@@ -413,7 +420,7 @@ def index():
 
 @app.route('/mk', endpoint='milton_keynes_page')
 @app.route('/miltonkeynes', endpoint='milton_keynes_page')
-@app.route('/bedford', endpoint='bedford_page')
+@app.route('/woking', endpoint='woking_page')
 @app.route('/buckingham', endpoint='buckingham_page')
 def community_page(community_slug=None):
     requested = (community_slug or request.path.lstrip('/')).strip().lower()
@@ -474,10 +481,10 @@ def add_listing():
         additional_information = request.form.get('additional_information', '').strip()
         deals = request.form.get('deals', '').strip()
 
-        if not name or not category or not address:
+        if not name or category not in CATEGORY_OPTIONS or not address:
             return render_template(
                 'add_listing.html',
-                error='Please provide a business name, category, and address.',
+            error='Please provide a business name, valid category, and address.',
                 form=request.form,
                 communities=communities,
                 selected_community=community,
@@ -523,6 +530,13 @@ def add_listing():
         listings.insert(0, new_listing)
         save_listings(listings)
         return redirect(url_for('index', community_slug=get_community_slug(community)))
+
+    return render_template(
+        'add_listing.html',
+        communities=communities,
+        selected_community=selected_community,
+    )
+
 @app.route('/listing/<listing_id>')
 def listing_detail(listing_id):
     listing = None
