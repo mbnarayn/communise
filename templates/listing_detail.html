@@ -4,44 +4,51 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ listing.name }} | Communise</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
   </head>
   <body>
     <header class="topbar">
       <div class="container nav">
-        <div class="brand">Communise</div>
+        <a class="brand" href="{{ url_for('index') }}">
+          <img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" />
+        </a>
         <nav>
           <a href="{{ url_for('index') }}">Home</a>
           {% for community in communities %}
             {% if community.slug == 'miltonkeynes' %}
               <a href="{{ url_for('milton_keynes_page') }}">{{ community.label }}</a>
-            {% elif community.slug == 'bedford' %}
-              <a href="{{ url_for('bedford_page') }}">{{ community.label }}</a>
+            {% elif community.slug == 'woking' %}
+              <a href="{{ url_for('woking_page') }}">{{ community.label }}</a>
             {% elif community.slug == 'buckingham' %}
               <a href="{{ url_for('buckingham_page') }}">{{ community.label }}</a>
             {% endif %}
           {% endfor %}
-          <a href="{{ url_for('add_listing') }}">Add Listing</a>
-          <a href="{{ url_for('admin') }}">Admin</a>
         </nav>
       </div>
     </header>
 
     <main class="container detail-page">
       <section class="detail-card">
-        <div class="detail-header">
-          <div class="tag">{{ listing.category }}</div>
-          {% if listing.community %}
-            <p class="eyebrow">{{ community_label }}</p>
-          {% endif %}
-          <h1>{{ listing.name }}</h1>
-        </div>
+        <div class="detail-layout">
+          <div class="detail-content">
+            <div class="detail-header">
+              <div class="detail-heading">
+                <div class="detail-meta">
+                  {% if listing.community %}
+                    <p class="eyebrow">{{ community_label }}</p>
+                  {% endif %}
+                  <div class="tag detail-category">{{ listing.category }}</div>
+                </div>
+                <h1>{{ listing.name }}</h1>
+              </div>
+            </div>
 
-        {% if listing.description %}
-          <p class="detail-description">{{ listing.description }}</p>
-        {% endif %}
+            {% if listing.description %}
+              <p class="detail-description">{{ listing.description }}</p>
+            {% endif %}
 
-        <div class="detail-grid">
+            <div class="detail-grid">
           {% if listing.address %}
             <div class="detail-item">
               <strong>Address</strong>
@@ -66,7 +73,7 @@
           {% if listing.website %}
             <div class="detail-item">
               <strong>Website</strong>
-              <p><a href="{{ listing.website }}" target="_blank" rel="noreferrer">{{ listing.website }}</a></p>
+              <p><a href="{{ listing.website | external_url }}" target="_blank" rel="noreferrer">{{ listing.website }}</a></p>
             </div>
           {% endif %}
 
@@ -93,7 +100,7 @@
 
           {% if listing.sub_community %}
             <div class="detail-item">
-              <strong>Sub community</strong>
+              <strong>Subcommunity</strong>
               <p>{{ listing.sub_community }}</p>
             </div>
           {% endif %}
@@ -101,27 +108,52 @@
           {% if listing.opening_hours %}
             <div class="detail-item">
               <strong>Opening hours</strong>
-              <p>{{ listing.opening_hours }}</p>
+              {% if listing.opening_hours is mapping %}
+                <div class="hours-display">
+                  {% for day, periods in listing.opening_hours.items() %}
+                    <div class="hours-display-row">
+                      <span>{{ day|capitalize }}</span>
+                      <span>{% if periods %}{% for period in periods %}{{ period.open }}-{{ period.close }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}Closed{% endif %}</span>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <p>{{ listing.opening_hours }}</p>
+              {% endif %}
             </div>
           {% endif %}
-        </div>
+            </div>
 
-        {% if listing.additional_information %}
-          <div class="detail-callout">
-            <strong>Additional information</strong>
-            <p>{{ listing.additional_information }}</p>
+            {% if listing.additional_information %}
+              <div class="detail-callout">
+                <strong>Additional information</strong>
+                <p>{{ listing.additional_information }}</p>
+              </div>
+            {% endif %}
+
+            {% if listing.deals %}
+              <div class="detail-callout accent">
+                <strong>Deals / special promotions</strong>
+                <p>{{ listing.deals }}</p>
+              </div>
+            {% endif %}
+
+            <div class="detail-actions">
+              <a class="primary-btn" href="{{ url_for('index') }}">Back to Listings</a>
+              <div class="listing-management-actions">
+                <a class="edit-listing-button" href="{{ url_for('edit_listing', listing_id=listing.id) }}">Edit Listing</a>
+                <form method="POST" action="{{ url_for('request_listing_deletion', listing_id=listing.id) }}" onsubmit="return confirm('Submit this listing for deletion review?');">
+                  <button type="submit" class="delete-listing-button">Delete Listing</button>
+                </form>
+              </div>
+            </div>
           </div>
-        {% endif %}
 
-        {% if listing.deals %}
-          <div class="detail-callout accent">
-            <strong>Deals / special promotions</strong>
-            <p>{{ listing.deals }}</p>
-          </div>
-        {% endif %}
-
-        <div class="detail-actions">
-          <a class="primary-btn" href="{{ url_for('index') }}">Back to listings</a>
+          {% if listing.logo_url or listing.image %}
+            <aside class="detail-media">
+              <img class="detail-logo" src="{{ listing.logo_url or listing.image }}" alt="{{ listing.name }} logo" />
+            </aside>
+          {% endif %}
         </div>
       </section>
     </main>

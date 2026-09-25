@@ -1,15 +1,28 @@
+import hashlib
 import json
 import os
+import random
+from datetime import date
+from pathlib import Path
 
 from functools import wraps
 
 from flask import Flask, Response, redirect, render_template, request, session, url_for
+from werkzeug.utils import secure_filename
 
 try:
     from azure.cosmos import CosmosClient, PartitionKey
 except ImportError:  # pragma: no cover - only used when Azure SDK is not installed.
     CosmosClient = None
     PartitionKey = None
+
+try:
+    from azure.identity import DefaultAzureCredential
+    from azure.storage.blob import BlobServiceClient, ContentSettings
+except ImportError:  # pragma: no cover - optional for local filesystem development.
+    DefaultAzureCredential = None
+    BlobServiceClient = None
+    ContentSettings = None
 
 app = Flask(__name__)
 app.secret_key = "local-directory-demo"
@@ -22,19 +35,38 @@ COMMUNITY_ALIASES = {
     "mk": "miltonkeynes",
     "miltonkeys": "miltonkeynes",
     "miltonkeynes": "miltonkeynes",
-    "bedford": "bedford",
+    "woking": "woking",
     "buckingham": "buckingham",
 }
 COMMUNITY_LABELS = {
     "miltonkeynes": "Milton Keynes",
-    "bedford": "Bedford",
+    "woking": "Woking",
     "buckingham": "Buckingham",
 }
 COMMUNITY_TEMPLATES = {
     "miltonkeynes": "community.html",
-    "bedford": "community.html",
+    "woking": "community.html",
     "buckingham": "community.html",
 }
+CATEGORY_OPTIONS = [
+    "Services",
+    "Lifestyle",
+    "Food",
+    "Shopping",
+    "Recreation",
+    "Education",
+    "Other",
+]
+LISTINGS_PER_PAGE = 16
+DAYS_OF_WEEK = (
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+)
 
 # Simple per-page overrides for listing cards. Update these booleans to decide
 # which listing features appear on the homepage vs the community pages.
@@ -61,12 +93,24 @@ LISTING_FEATURES = {
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 DATA_FILE = os.path.join(DATA_DIR, "listings.json")
+LOCAL_LOGO_DIR = Path(os.path.dirname(__file__)) / "static" / "uploads" / "logos"
+ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+ALLOWED_LOGO_TYPES = {"image/png", "image/jpeg", "image/webp"}
+MAX_LOGO_BYTES = 2 * 1024 * 1024
 
 
 def normalize_community(value):
     community = str(value or DEFAULT_COMMUNITY).strip().lower()
     community = community.replace(" ", "-")
     return COMMUNITY_ALIASES.get(community, community or DEFAULT_COMMUNITY)
+
+
+@app.template_filter('external_url')
+def external_url(value):
+    url = str(value or '').strip()
+    if url and not url.startswith(('http://', 'https://')):
+        return f'https://{url}'
+    return url
 
 
 def get_community_label(community):
@@ -88,6 +132,35 @@ def get_community_template(community):
 def get_listing_feature_config(page_name):
     page = str(page_name or "home").lower()
     return LISTING_FEATURES.get(page, LISTING_FEATURES["home"]).copy()
+
+
+def parse_opening_hours(form, existing=None):
+    periods = {}
+    has_daily_hours = False
+    for day in DAYS_OF_WEEK:
+        day_periods = []
+        for period_number in (1, 2):
+            opening = (form.get(f'opening_{day}_{period_number}_open') or '').strip()
+            closing = (form.get(f'opening_{day}_{period_number}_close') or '').strip()
+            if opening or closing:
+                has_daily_hours = True
+            if opening and closing:
+                day_periods.append({'open': opening, 'close': closing})
+        periods[day] = day_periods
+
+    return periods if has_daily_hours else (existing or '')
+
+
+def paginate_listings(listings, requested_page):
+    try:
+        page = max(1, int(requested_page or 1))
+    except (TypeError, ValueError):
+        page = 1
+
+    total_pages = max(1, (len(listings) + LISTINGS_PER_PAGE - 1) // LISTINGS_PER_PAGE)
+    page = min(page, total_pages)
+    start = (page - 1) * LISTINGS_PER_PAGE
+    return listings[start:start + LISTINGS_PER_PAGE], page, total_pages
 
 
 def get_community_options(listings):
@@ -139,7 +212,8 @@ def get_seed_data():
         normalize_listing({
             "id": 1,
             "name": "Maple Cafe",
-            "category": "Food & Drink",
+            "category": "Food",
+            "image": "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=160&q=80",
             "description": "Cozy neighborhood coffee shop with fresh pastries and free Wi-Fi.",
             "address": "15 Maple Street",
             "phone": "555-0142",
@@ -160,7 +234,7 @@ def get_seed_data():
         normalize_listing({
             "id": 2,
             "name": "Oak Pharmacy",
-            "category": "Essential Services",
+            "category": "Services",
             "description": "Local pharmacy offering prescriptions, wellness products, and advice.",
             "address": "8 Oak Lane",
             "phone": "555-0189",
@@ -174,7 +248,7 @@ def get_seed_data():
         normalize_listing({
             "id": 3,
             "name": "River Fitness",
-            "category": "Amenities",
+            "category": "Recreation",
             "description": "Gym and fitness studio with classes, lockers, and personal training.",
             "address": "44 River Road",
             "phone": "555-0112",
@@ -186,13 +260,13 @@ def get_seed_data():
         }),
         normalize_listing({
             "id": 4,
-            "name": "Bedford Market Hall",
-            "category": "Shop",
+            "name": "Woking Market Hall",
+            "category": "Shopping",
             "description": "A busy local food and crafts market with weekly seasonal stalls.",
-            "address": "27 High Street, Bedford",
+            "address": "27 High Street, Woking",
             "phone": "555-0201",
-            "website": "https://example.com/bedfordmarket",
-            "community": "bedford",
+            "website": "https://example.com/wokingmarket",
+            "community": "woking",
             "homepagefeatured": True,
             "communitypagefeatured": True,
             "usage_count": 0,
@@ -200,7 +274,7 @@ def get_seed_data():
         normalize_listing({
             "id": 5,
             "name": "Buckingham Library Hub",
-            "category": "Amenities",
+            "category": "Lifestyle",
             "description": "Community library, reading café, and free Wi-Fi for local residents.",
             "address": "10 Castle Street, Buckingham",
             "phone": "555-0202",
@@ -279,22 +353,9 @@ def filter_listings(
     query=None,
     category=None,
     community=None,
-    homepage_featured_only=False,
-    community_page_featured_only=False,
+    featured_field=None,
 ):
     filtered = [item for item in listings if item.get('approved', True)]
-
-    if homepage_featured_only:
-        filtered = [
-            item for item in filtered
-            if bool(item.get('homepagefeatured', False))
-        ]
-
-    if community_page_featured_only:
-        filtered = [
-            item for item in filtered
-            if bool(item.get('communitypagefeatured', False))
-        ]
 
     if community:
         selected_community = normalize_community(community)
@@ -320,12 +381,28 @@ def filter_listings(
             if str(item.get('category', '')).lower() == category.lower()
         ]
 
+    if featured_field:
+        featured = [item for item in filtered if bool(item.get(featured_field, False))]
+        non_featured = [item for item in filtered if not bool(item.get(featured_field, False))]
+        seed_parts = (
+            date.today().isoformat(),
+            featured_field,
+            normalize_community(community or 'all'),
+            query or '',
+            category or '',
+        )
+        seed = int.from_bytes(
+            hashlib.sha256('|'.join(seed_parts).encode('utf-8')).digest()[:8],
+            'big',
+        )
+        random.Random(seed).shuffle(non_featured)
+        filtered = featured + non_featured
+
     return filtered
 
 
 def get_categories(listings):
-    categories = sorted({str(item.get('category', '')).strip() for item in listings if item.get('category') and item.get('approved', True)})
-    return ['All'] + categories
+    return ['All'] + CATEGORY_OPTIONS.copy()
 
 
 def load_listings(community=None):
@@ -381,39 +458,100 @@ def save_listings(listings):
         json.dump(normalized_items, file, indent=2)
 
 
+def delete_listing_record(listings, listing):
+    if is_cosmos_configured():
+        container = get_cosmos_container()
+        if container is not None:
+            container.delete_item(
+                item=str(listing.get('id')),
+                partition_key=listing.get('category'),
+            )
+            return
+
+    listings.remove(listing)
+    save_listings(listings)
+
+
+def store_logo(upload, listing_id):
+    if not upload or not upload.filename:
+        return ""
+
+    filename = secure_filename(upload.filename)
+    extension = Path(filename).suffix.lower().lstrip(".")
+    if not filename or extension not in ALLOWED_LOGO_EXTENSIONS:
+        raise ValueError("Logo must be a PNG, JPEG, or WebP image.")
+    if upload.content_type not in ALLOWED_LOGO_TYPES:
+        raise ValueError("Logo must be a PNG, JPEG, or WebP image.")
+
+    upload.stream.seek(0, os.SEEK_END)
+    if upload.stream.tell() > MAX_LOGO_BYTES:
+        raise ValueError("Logo must be 2 MB or smaller.")
+    upload.stream.seek(0)
+
+    blob_name = f"{listing_id}/logo.{extension}"
+    account_url = os.getenv("AZURE_STORAGE_ACCOUNT_URL")
+    container_name = os.getenv("AZURE_STORAGE_CONTAINER", "listing-logos")
+    if account_url:
+        if not BlobServiceClient:
+            raise RuntimeError("Azure Blob Storage dependencies are not installed.")
+        storage_key = os.getenv("AZURE_STORAGE_ACCOUNT_KEY")
+        if storage_key:
+            credential = storage_key
+        else:
+            if not DefaultAzureCredential:
+                raise RuntimeError("Azure identity dependencies are not installed.")
+            credential = DefaultAzureCredential()
+        client = BlobServiceClient(account_url=account_url, credential=credential)
+        blob_client = client.get_blob_client(container=container_name, blob=blob_name)
+        blob_client.upload_blob(
+            upload.stream,
+            overwrite=True,
+            content_settings=ContentSettings(content_type=upload.content_type),
+        )
+        return blob_client.url
+
+    LOCAL_LOGO_DIR.mkdir(parents=True, exist_ok=True)
+    local_path = LOCAL_LOGO_DIR / blob_name
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    upload.save(local_path)
+    return url_for("static", filename=f"uploads/logos/{blob_name}")
+
+
 @app.route('/')
 def index():
     query = request.args.get('q', '').strip()
     category = request.args.get('category', 'All').strip()
+    requested_page = request.args.get('page', 1)
     all_listings = load_listings()
-    listings = [
-        item for item in all_listings
-        if bool(item.get('homepagefeatured', False))
-    ]
+    listings = all_listings
     filtered = filter_listings(
         listings,
         query=query,
         category=category if category != 'All' else None,
-        homepage_featured_only=True,
+        featured_field='homepagefeatured',
     )
+    paginated, page, total_pages = paginate_listings(filtered, requested_page)
     communities = get_community_options(all_listings)
     return render_template(
         'index.html',
-        listings=filtered,
+        listings=paginated,
         query=query,
         category=category,
-        categories=get_categories(listings),
+        categories=get_categories(all_listings),
         communities=communities,
         community_slug='all',
         community_label='Featured listings',
         selected_community='all',
         listing_features=get_listing_feature_config('home'),
+        page=page,
+        total_pages=total_pages,
+        pagination_endpoint='index',
     )
 
 
 @app.route('/mk', endpoint='milton_keynes_page')
 @app.route('/miltonkeynes', endpoint='milton_keynes_page')
-@app.route('/bedford', endpoint='bedford_page')
+@app.route('/woking', endpoint='woking_page')
 @app.route('/buckingham', endpoint='buckingham_page')
 def community_page(community_slug=None):
     requested = (community_slug or request.path.lstrip('/')).strip().lower()
@@ -426,6 +564,7 @@ def community_page(community_slug=None):
 
     query = request.args.get('q', '').strip()
     category = request.args.get('category', 'All').strip()
+    requested_page = request.args.get('page', 1)
     all_listings = load_listings()
     listings = load_listings(normalized)
     filtered = filter_listings(
@@ -433,13 +572,14 @@ def community_page(community_slug=None):
         query=query,
         category=category if category != 'All' else None,
         community=normalized,
-        community_page_featured_only=True,
+        featured_field='communitypagefeatured',
     )
+    paginated, page, total_pages = paginate_listings(filtered, requested_page)
     communities = get_community_options(all_listings)
     template_name = get_community_template(normalized)
     return render_template(
         template_name,
-        listings=filtered,
+        listings=paginated,
         query=query,
         category=category,
         categories=get_categories(listings),
@@ -448,6 +588,9 @@ def community_page(community_slug=None):
         community_label=get_community_label(normalized),
         selected_community=get_community_slug(normalized),
         listing_features=get_listing_feature_config('community'),
+        page=page,
+        total_pages=total_pages,
+        pagination_endpoint=request.endpoint,
     )
 
 
@@ -470,14 +613,15 @@ def add_listing():
         whatsapp_group = whatsapp_group.strip()
         community = normalize_community(request.form.get('community') or selected_community)
         sub_community = request.form.get('sub_community', '').strip()
-        opening_hours = request.form.get('opening_hours', '').strip()
+        opening_hours = parse_opening_hours(request.form)
         additional_information = request.form.get('additional_information', '').strip()
         deals = request.form.get('deals', '').strip()
+        logo = request.files.get('logo')
 
-        if not name or not category or not address:
+        if not name or category not in CATEGORY_OPTIONS or not address:
             return render_template(
                 'add_listing.html',
-                error='Please provide a business name, category, and address.',
+            error='Please provide a business name, valid category, and address.',
                 form=request.form,
                 communities=communities,
                 selected_community=community,
@@ -492,6 +636,17 @@ def add_listing():
                 continue
 
         next_id = max(numeric_ids, default=0) + 1
+        try:
+            logo_url = store_logo(logo, next_id)
+        except (OSError, RuntimeError, ValueError) as error:
+            return render_template(
+                'add_listing.html',
+                error=str(error),
+                form=request.form,
+                communities=communities,
+                selected_community=community,
+            )
+
         new_listing = normalize_listing({
             'id': next_id,
             'name': name,
@@ -509,9 +664,11 @@ def add_listing():
             'opening_hours': opening_hours,
             'additional_information': additional_information,
             'deals': deals,
+            'logo_url': logo_url,
             'approved': False,
-            'homepagefeatured': True,
-            'communitypagefeatured': True,
+            'pending_action': 'add',
+            'homepagefeatured': False,
+            'communitypagefeatured': False,
         })
 
         if is_cosmos_configured():
@@ -523,12 +680,131 @@ def add_listing():
         listings.insert(0, new_listing)
         save_listings(listings)
         return redirect(url_for('index', community_slug=get_community_slug(community)))
+
+    return render_template(
+        'add_listing.html',
+        communities=communities,
+        selected_community=selected_community,
+    )
+
+
+@app.route('/listing/<listing_id>/edit', methods=['GET', 'POST'])
+def edit_listing(listing_id):
+    admin_mode = request.args.get('admin') == '1'
+    if admin_mode:
+        auth = request.authorization
+        if not auth or auth.username != ADMIN_USERNAME or auth.password != ADMIN_PASSWORD:
+            return Response(
+                "Authentication required.",
+                401,
+                {"WWW-Authenticate": 'Basic realm="Admin Area"'},
+            )
+
+    listings = load_listings()
+    listing = next((item for item in listings if str(item.get('id')) == str(listing_id)), None)
+    if listing is None:
+        return render_template('404.html', communities=get_community_options(listings)), 404
+
+    communities = get_community_options(listings)
+    selected_community = normalize_community(listing.get('community'))
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        category = request.form.get('category', '').strip()
+        address = request.form.get('address', '').strip()
+        community = normalize_community(request.form.get('community') or selected_community)
+
+        if not name or category not in CATEGORY_OPTIONS or not address:
+            return render_template(
+                'add_listing.html',
+                error='Please provide a business name, valid category, and address.',
+                form=request.form,
+                listing=listing,
+                editing=True,
+                communities=communities,
+                selected_community=community,
+            )
+
+        updated_values = {
+            'name': name,
+            'category': category,
+            'description': request.form.get('description', '').strip() or 'A local spot to discover and support.',
+            'address': address,
+            'phone': (request.form.get('phone_number') or request.form.get('phone') or '').strip(),
+            'website': request.form.get('website', '').strip(),
+            'email': request.form.get('email', '').strip(),
+            'instagram': request.form.get('instagram', '').strip(),
+            'facebook': request.form.get('facebook', '').strip(),
+            'whatsapp_group': (request.form.get('whatsapp_group') or request.form.get('whatsappgroup') or '').strip(),
+            'community': community,
+            'sub_community': request.form.get('sub_community', '').strip(),
+            'opening_hours': parse_opening_hours(request.form, listing.get('opening_hours')),
+            'additional_information': request.form.get('additional_information', '').strip(),
+            'deals': request.form.get('deals', '').strip(),
+        }
+
+        logo = request.files.get('logo')
+        try:
+            if logo and logo.filename:
+                updated_values['logo_url'] = store_logo(logo, listing_id)
+        except (OSError, RuntimeError, ValueError) as error:
+            return render_template(
+                'add_listing.html',
+                error=str(error),
+                form=request.form,
+                listing=listing,
+                editing=True,
+                communities=communities,
+                selected_community=community,
+            )
+
+        if admin_mode:
+            listing.update(updated_values)
+            listing.pop('pending_changes', None)
+            listing['approved'] = True
+            listing['pending_action'] = ''
+        else:
+            listing['pending_changes'] = updated_values
+            listing['pending_action'] = 'edit'
+        save_listings(listings)
+        return redirect(url_for('admin' if admin_mode else 'index'))
+
+    return render_template(
+        'add_listing.html',
+        form=listing,
+        listing=listing,
+        editing=True,
+        admin_mode=admin_mode,
+        communities=communities,
+        selected_community=selected_community,
+    )
+
+
+@app.route('/listing/<listing_id>/delete', methods=['POST'])
+def request_listing_deletion(listing_id):
+    listings = load_listings()
+    for item in listings:
+        if str(item.get('id')) == str(listing_id):
+            item['pending_action'] = 'delete'
+            save_listings(listings)
+            break
+    return redirect(url_for('index'))
+
 @app.route('/listing/<listing_id>')
 def listing_detail(listing_id):
+    listing_id = str(listing_id)
+    listings = load_listings()
     listing = None
-    for item in load_listings():
-        if str(item.get('id')) == str(listing_id):
+    viewed_listings = {str(item) for item in session.get('viewed_listings', [])}
+    for item in listings:
+        if str(item.get('id')) == listing_id:
             listing = item
+            if listing_id not in viewed_listings:
+                item['usage_count'] = int(item.get('usage_count', 0) or 0) + 1
+                save_listings(listings)
+                viewed_listings.add(listing_id)
+                session['viewed_listings'] = list(viewed_listings)
+                session.modified = True
             break
 
     if listing is None:
@@ -545,8 +821,97 @@ def listing_detail(listing_id):
 @app.route('/admin')
 @requires_auth
 def admin():
-    pending = [item for item in load_listings() if not item.get('approved', True)]
-    return render_template('admin.html', listings=pending)
+    query = request.args.get('q', '').strip().lower()
+    field_labels = {
+        'name': 'Name',
+        'category': 'Category',
+        'description': 'Description',
+        'address': 'Address',
+        'phone': 'Phone',
+        'website': 'Website',
+        'email': 'Email',
+        'instagram': 'Instagram',
+        'facebook': 'Facebook',
+        'whatsapp_group': 'WhatsApp group',
+        'community': 'Community',
+        'sub_community': 'Sub community',
+        'opening_hours': 'Opening hours',
+        'additional_information': 'Additional information',
+        'deals': 'Deals / special promotions',
+        'logo_url': 'Logo',
+    }
+    existing = []
+    pending = []
+    for item in load_listings():
+        review_item = dict(item)
+        has_pending_work = not item.get('approved', True) or bool(item.get('pending_action'))
+        if item.get('pending_action') == 'edit':
+            pending_changes = item.get('pending_changes') or {}
+            review_item['pending_diff'] = [
+                {
+                    'label': field_labels.get(field, field.replace('_', ' ').title()),
+                    'before': item.get(field) or 'Not set',
+                    'after': value or 'Not set',
+                }
+                for field, value in pending_changes.items()
+                if value != item.get(field)
+            ]
+            review_item.update(pending_changes)
+
+        matches_query = not query or any(
+            query in str(review_item.get(field, '')).lower()
+            for field in ('name', 'category', 'description', 'address', 'phone', 'website', 'community')
+        )
+        if has_pending_work:
+            pending.append(review_item)
+        elif query and matches_query:
+            existing.append(review_item)
+
+    admin_sections = [
+        {
+            'kind': 'existing',
+            'heading': 'Manage existing listings',
+            'description': 'Search and manage published listings directly.',
+            'listings': existing,
+        },
+        {
+            'kind': 'pending',
+            'heading': 'Approve new and changed listings',
+            'description': 'Review new submissions and pending edits or deletions.',
+            'listings': pending,
+        },
+    ]
+    return render_template('admin.html', admin_sections=admin_sections, query=query)
+
+
+@app.route('/admin/listing/<listing_id>/delete', methods=['POST'])
+@requires_auth
+def admin_delete_listing(listing_id):
+    listings = load_listings()
+    listing = next((item for item in listings if str(item.get('id')) == str(listing_id)), None)
+    if listing is not None:
+        delete_listing_record(listings, listing)
+    return redirect(url_for('admin'))
+
+
+@app.route('/admin/listing/<listing_id>/feature/<scope>', methods=['POST'])
+@requires_auth
+def toggle_listing_feature(listing_id, scope):
+    feature_fields = {
+        'homepage': 'homepagefeatured',
+        'community': 'communitypagefeatured',
+    }
+    field = feature_fields.get(scope)
+    if not field:
+        return redirect(url_for('admin'))
+
+    listings = load_listings()
+    for item in listings:
+        if str(item.get('id')) == str(listing_id):
+            item[field] = not bool(item.get(field, False))
+            save_listings(listings)
+            break
+    return redirect(url_for('admin'))
 
 
 @app.route('/admin/approve/<listing_id>', methods=['POST'])
@@ -555,7 +920,13 @@ def approve_listing(listing_id):
     listings = load_listings()
     for item in listings:
         if str(item.get('id')) == str(listing_id):
+            if item.get('pending_action', 'add') == 'delete':
+                delete_listing_record(listings, item)
+                return redirect(url_for('admin'))
+            if item.get('pending_action') == 'edit':
+                item.update(item.pop('pending_changes', {}))
             item['approved'] = True
+            item['pending_action'] = ''
             save_listings(listings)
             break
     return redirect(url_for('admin'))
@@ -565,7 +936,15 @@ def approve_listing(listing_id):
 @requires_auth
 def reject_listing(listing_id):
     listings = load_listings()
-    listings = [item for item in listings if str(item.get('id')) != str(listing_id)]
+    for item in listings:
+        if str(item.get('id')) == str(listing_id):
+            if item.get('pending_action', 'add') == 'add':
+                listings.remove(item)
+            else:
+                item.pop('pending_changes', None)
+                item['approved'] = True
+                item['pending_action'] = ''
+            break
     save_listings(listings)
     return redirect(url_for('admin'))
 

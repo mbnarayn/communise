@@ -3,31 +3,32 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Add Listing</title>
+    <title>{% if editing %}Edit Listing{% else %}Add Listing{% endif %}</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
   </head>
   <body>
     <header class="topbar">
       <div class="container nav">
-        <div class="brand">Communise</div>
+        <a class="brand" href="{{ url_for('index') }}">
+          <img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" />
+        </a>
         <nav>
           <a href="{{ url_for('index') }}">Home</a>
-          <a href="{{ url_for('add_listing') }}">Add Listing</a>
-          <a href="{{ url_for('admin') }}">Admin</a>
         </nav>
       </div>
     </header>
 
     <main class="container form-page">
       <section class="form-card">
-        <h1>Add a local listing</h1>
-        <p>Share a shop, service, or amenity with the community.</p>
+        <h1>{% if editing and admin_mode %}Edit listing (Admin){% elif editing %}Edit listing{% else %}Add a local listing{% endif %}</h1>
+        <p>{% if editing and admin_mode %}Update this listing directly.{% elif editing %}Update the listing details and submit them for review.{% else %}Share a shop, service, or amenity with the community.{% endif %}</p>
 
         {% if error %}
           <div class="error-banner">{{ error }}</div>
         {% endif %}
 
-        <form method="POST" action="{{ url_for('add_listing') }}">
+        <form method="POST" action="{{ url_for('edit_listing', listing_id=listing.id, admin='1') if editing and admin_mode else url_for('edit_listing', listing_id=listing.id) if editing else url_for('add_listing') }}" enctype="multipart/form-data">
           <label>
             Community
             <select name="community">
@@ -40,14 +41,61 @@
           </label>
 
           <label>
+            Subcommunity
+            <input type="text" name="sub_community" value="{{ form.sub_community if form and form.sub_community else '' }}" placeholder="e.g. Whitehouse, Broughton" />
+            <small>The estate or neighbourhood within the larger community area, such as Whitehouse or Broughton.</small>
+          </label>
+
+          <label>
             Name
             <input type="text" name="name" value="{{ form.name if form and form.name else '' }}" required />
           </label>
 
           <label>
-            Category
-            <input type="text" name="category" value="{{ form.category if form and form.category else '' }}" placeholder="e.g. Shop, Coffee, Services" required />
+            Logo
+            <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" />
+            <small>{% if editing and listing.logo_url %}Leave empty to keep the current logo. {% endif %}PNG, JPEG, or WebP. Maximum 2 MB.</small>
           </label>
+
+          <label>
+            Category
+            <select name="category" required>
+              <option value="">Choose a category</option>
+              {% for category in ['Services', 'Lifestyle', 'Food', 'Shopping', 'Recreation', 'Education', 'Other'] %}
+                <option value="{{ category }}" {% if form and form.category == category %}selected{% endif %}>{{ category }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <div class="category-guide" aria-label="Category examples">
+            <p class="category-guide-title">Choose the category that best fits your listing.</p>
+            <div class="category-guide-grid">
+              <div>
+                <strong>Services</strong>
+                <span>Home Services, Professional Services, Automotive Services, Repairs &amp; Maintenance</span>
+              </div>
+              <div>
+                <strong>Lifestyle</strong>
+                <span>Beauty &amp; Personal Care, Health &amp; Wellness, Fashion, Spa &amp; Relaxation</span>
+              </div>
+              <div>
+                <strong>Food</strong>
+                <span>Restaurants, Cafes, Takeaways, Bakeries, Bars &amp; Pubs</span>
+              </div>
+              <div>
+                <strong>Shopping</strong>
+                <span>Retail Stores, Electronics, Home &amp; Garden, Gifts &amp; Specialty Shops</span>
+              </div>
+              <div>
+                <strong>Recreation</strong>
+                <span>Sports Clubs, Dance Schools, Gyms &amp; Fitness, Martial Arts, Children's Activities, Arts &amp; Hobbies</span>
+              </div>
+              <div>
+                <strong>Education</strong>
+                <span>Tutors, Training Providers, Schools, Learning Centres, and Educational Activities</span>
+              </div>
+            </div>
+          </div>
 
           <label>
             Description
@@ -61,12 +109,12 @@
 
           <label>
             Phone number
-            <input type="tel" name="phone_number" value="{{ form.phone_number if form and form.phone_number else '' }}" />
+            <input type="tel" name="phone_number" value="{{ (form.get('phone_number') or form.get('phone', '')) if form else '' }}" />
           </label>
 
           <label>
             Website
-            <input type="url" name="website" value="{{ form.website if form and form.website else '' }}" placeholder="https://example.com" />
+            <input type="text" name="website" value="{{ form.website if form and form.website else '' }}" placeholder="www.example.com" />
           </label>
 
           <label>
@@ -89,15 +137,25 @@
             <input type="url" name="whatsapp_group" value="{{ form.whatsapp_group if form and form.whatsapp_group else '' }}" placeholder="https://chat.whatsapp.com/..." />
           </label>
 
-          <label>
-            Sub community
-            <input type="text" name="sub_community" value="{{ form.sub_community if form and form.sub_community else '' }}" placeholder="e.g. Town Centre, West End" />
-          </label>
-
-          <label>
-            Opening hours
-            <input type="text" name="opening_hours" value="{{ form.opening_hours if form and form.opening_hours else '' }}" placeholder="Mon-Sat 9am-5pm" />
-          </label>
+          <fieldset class="hours-editor">
+            <legend>Opening hours</legend>
+            <small>Leave a day blank if you are closed. Use the second time pair for split hours, such as a lunch break.</small>
+            {% if form and form.opening_hours is string and form.opening_hours %}
+              <small>Current hours: {{ form.opening_hours }}. Add daily hours below to replace them.</small>
+            {% endif %}
+            {% for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] %}
+              {% set day_hours = form.opening_hours.get(day, []) if form and form.opening_hours is mapping else [] %}
+              <div class="hours-row">
+                <strong>{{ day|capitalize }}</strong>
+                <input type="time" name="opening_{{ day }}_1_open" value="{{ day_hours[0].open if day_hours|length > 0 else '' }}" aria-label="{{ day|capitalize }} first opening time" />
+                <span>to</span>
+                <input type="time" name="opening_{{ day }}_1_close" value="{{ day_hours[0].close if day_hours|length > 0 else '' }}" aria-label="{{ day|capitalize }} first closing time" />
+                <input type="time" name="opening_{{ day }}_2_open" value="{{ day_hours[1].open if day_hours|length > 1 else '' }}" aria-label="{{ day|capitalize }} second opening time" />
+                <span>to</span>
+                <input type="time" name="opening_{{ day }}_2_close" value="{{ day_hours[1].close if day_hours|length > 1 else '' }}" aria-label="{{ day|capitalize }} second closing time" />
+              </div>
+            {% endfor %}
+          </fieldset>
 
           <label>
             Additional information
@@ -109,7 +167,7 @@
             <textarea name="deals" rows="3" placeholder="Add current offers or promotions">{{ form.deals if form and form.deals else '' }}</textarea>
           </label>
 
-          <button type="submit" class="primary-btn">Save Listing</button>
+          <button type="submit" class="primary-btn">{% if editing and admin_mode %}Save Changes{% elif editing %}Submit for Review{% else %}Save Listing{% endif %}</button>
         </form>
       </section>
     </main>

@@ -23,6 +23,43 @@ Then open:
 http://localhost:8000
 ```
 
+### Listing logos
+
+Logo uploads are limited to PNG, JPEG, and WebP files up to 2 MB. During local
+development, uploaded logos are stored in `static/uploads/logos/` and the
+listing keeps the corresponding static URL.
+
+To use Azure Blob Storage instead, set the storage account URL and optional
+container name before starting the app:
+
+```bash
+export AZURE_STORAGE_ACCOUNT_URL=https://<storage-account>.blob.core.windows.net
+export AZURE_STORAGE_CONTAINER=listing-logos
+```
+
+When `AZURE_STORAGE_ACCOUNT_URL` is set, the app uses Azure managed identity
+authentication and uploads logos to Blob Storage. The App Service identity
+needs the `Storage Blob Data Contributor` role on the storage account, and the
+container must already exist.
+
+For local managed-identity-style authentication, sign in with:
+
+```bash
+az login
+```
+
+Uploaded logos are stored at `listing-logos/<listing-id>/logo.<extension>`.
+
+For local testing or environments without managed identity, you can provide a
+storage account key instead:
+
+```bash
+export AZURE_STORAGE_ACCOUNT_KEY=<storage-account-key>
+```
+
+When the key is present, it takes precedence over managed identity. Store it
+in a secret manager and rotate it regularly; do not commit it to source control.
+
 ## Use Azure Cosmos DB
 
 To switch the app to Azure Cosmos DB, add the following environment variables before running the app:
