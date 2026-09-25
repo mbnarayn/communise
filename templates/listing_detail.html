@@ -9,7 +9,9 @@
   <body>
     <header class="topbar">
       <div class="container nav">
-        <div class="brand">Communise</div>
+        <a class="brand" href="{{ url_for('index') }}">
+          <img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" />
+        </a>
         <nav>
           <a href="{{ url_for('index') }}">Home</a>
           {% for community in communities %}
@@ -21,27 +23,31 @@
               <a href="{{ url_for('buckingham_page') }}">{{ community.label }}</a>
             {% endif %}
           {% endfor %}
-          <a href="{{ url_for('add_listing') }}">Add Listing</a>
-          <a href="{{ url_for('admin') }}">Admin</a>
         </nav>
       </div>
     </header>
 
     <main class="container detail-page">
       <section class="detail-card">
-        <div class="detail-header">
-          <div class="tag">{{ listing.category }}</div>
-          {% if listing.community %}
-            <p class="eyebrow">{{ community_label }}</p>
-          {% endif %}
-          <h1>{{ listing.name }}</h1>
-        </div>
+        <div class="detail-layout">
+          <div class="detail-content">
+            <div class="detail-header">
+              <div class="detail-heading">
+                <div class="detail-meta">
+                  {% if listing.community %}
+                    <p class="eyebrow">{{ community_label }}</p>
+                  {% endif %}
+                  <div class="tag detail-category">{{ listing.category }}</div>
+                </div>
+                <h1>{{ listing.name }}</h1>
+              </div>
+            </div>
 
-        {% if listing.description %}
-          <p class="detail-description">{{ listing.description }}</p>
-        {% endif %}
+            {% if listing.description %}
+              <p class="detail-description">{{ listing.description }}</p>
+            {% endif %}
 
-        <div class="detail-grid">
+            <div class="detail-grid">
           {% if listing.address %}
             <div class="detail-item">
               <strong>Address</strong>
@@ -104,24 +110,38 @@
               <p>{{ listing.opening_hours }}</p>
             </div>
           {% endif %}
-        </div>
+            </div>
 
-        {% if listing.additional_information %}
-          <div class="detail-callout">
-            <strong>Additional information</strong>
-            <p>{{ listing.additional_information }}</p>
+            {% if listing.additional_information %}
+              <div class="detail-callout">
+                <strong>Additional information</strong>
+                <p>{{ listing.additional_information }}</p>
+              </div>
+            {% endif %}
+
+            {% if listing.deals %}
+              <div class="detail-callout accent">
+                <strong>Deals / special promotions</strong>
+                <p>{{ listing.deals }}</p>
+              </div>
+            {% endif %}
+
+            <div class="detail-actions">
+              <a class="primary-btn" href="{{ url_for('index') }}">Back to Listings</a>
+              <div class="listing-management-actions">
+                <a class="edit-listing-button" href="{{ url_for('edit_listing', listing_id=listing.id) }}">Edit Listing</a>
+                <form method="POST" action="{{ url_for('request_listing_deletion', listing_id=listing.id) }}" onsubmit="return confirm('Submit this listing for deletion review?');">
+                  <button type="submit" class="delete-listing-button">Delete Listing</button>
+                </form>
+              </div>
+            </div>
           </div>
-        {% endif %}
 
-        {% if listing.deals %}
-          <div class="detail-callout accent">
-            <strong>Deals / special promotions</strong>
-            <p>{{ listing.deals }}</p>
-          </div>
-        {% endif %}
-
-        <div class="detail-actions">
-          <a class="primary-btn" href="{{ url_for('index') }}">Back to listings</a>
+          {% if listing.logo_url or listing.image %}
+            <aside class="detail-media">
+              <img class="detail-logo" src="{{ listing.logo_url or listing.image }}" alt="{{ listing.name }} logo" />
+            </aside>
+          {% endif %}
         </div>
       </section>
     </main>

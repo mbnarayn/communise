@@ -3,31 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Add Listing</title>
+    <title>{% if editing %}Edit Listing{% else %}Add Listing{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
   </head>
   <body>
     <header class="topbar">
       <div class="container nav">
-        <div class="brand">Communise</div>
+        <a class="brand" href="{{ url_for('index') }}">
+          <img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" />
+        </a>
         <nav>
           <a href="{{ url_for('index') }}">Home</a>
-          <a href="{{ url_for('add_listing') }}">Add Listing</a>
-          <a href="{{ url_for('admin') }}">Admin</a>
         </nav>
       </div>
     </header>
 
     <main class="container form-page">
       <section class="form-card">
-        <h1>Add a local listing</h1>
-        <p>Share a shop, service, or amenity with the community.</p>
+        <h1>{% if editing %}Edit listing{% else %}Add a local listing{% endif %}</h1>
+        <p>{% if editing %}Update the listing details and submit them for review.{% else %}Share a shop, service, or amenity with the community.{% endif %}</p>
 
         {% if error %}
           <div class="error-banner">{{ error }}</div>
         {% endif %}
 
-        <form method="POST" action="{{ url_for('add_listing') }}">
+        <form method="POST" action="{{ url_for('edit_listing', listing_id=listing.id) if editing else url_for('add_listing') }}" enctype="multipart/form-data">
           <label>
             Community
             <select name="community">
@@ -42,6 +42,12 @@
           <label>
             Name
             <input type="text" name="name" value="{{ form.name if form and form.name else '' }}" required />
+          </label>
+
+          <label>
+            Logo
+            <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" />
+            <small>{% if editing and listing.logo_url %}Leave empty to keep the current logo. {% endif %}PNG, JPEG, or WebP. Maximum 2 MB.</small>
           </label>
 
           <label>
@@ -92,7 +98,7 @@
 
           <label>
             Phone number
-            <input type="tel" name="phone_number" value="{{ form.phone_number if form and form.phone_number else '' }}" />
+            <input type="tel" name="phone_number" value="{{ (form.get('phone_number') or form.get('phone', '')) if form else '' }}" />
           </label>
 
           <label>
@@ -140,7 +146,7 @@
             <textarea name="deals" rows="3" placeholder="Add current offers or promotions">{{ form.deals if form and form.deals else '' }}</textarea>
           </label>
 
-          <button type="submit" class="primary-btn">Save Listing</button>
+          <button type="submit" class="primary-btn">{% if editing %}Submit for Review{% else %}Save Listing{% endif %}</button>
         </form>
       </section>
     </main>

@@ -9,7 +9,9 @@
   <body>
     <header class="topbar">
       <div class="container nav">
-        <div class="brand">Communise</div>
+        <a class="brand" href="{{ url_for('index') }}">
+          <img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" />
+        </a>
         <nav>
           <a href="{{ url_for('index') }}">Home</a>
           {% for community in communities %}

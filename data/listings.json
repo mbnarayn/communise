@@ -3,6 +3,7 @@
     "id": "1",
     "name": "Maple Cafe",
     "category": "Food",
+    "image": "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=160&q=80",
     "description": "Cozy neighborhood coffee shop with fresh pastries and free Wi-Fi.",
     "address": "15 Maple Street",
     "phone": "555-0142",

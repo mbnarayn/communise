@@ -9,7 +9,9 @@
   <body>
     <header class="topbar">
       <div class="container nav">
-        <div class="brand">Communise</div>
+        <a class="brand" href="{{ url_for('index') }}">
+          <img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" />
+        </a>
         <nav>
           <a href="{{ url_for('index') }}">Home</a>
           {% for community in communities %}
@@ -21,8 +23,6 @@
               <a href="{{ url_for('buckingham_page') }}">{{ community.label }}</a>
             {% endif %}
           {% endfor %}
-          <a href="{{ url_for('add_listing') }}">Add Listing</a>
-          <a href="{{ url_for('admin') }}">Admin</a>
         </nav>
       </div>
     </header>
@@ -30,41 +30,27 @@
     <main class="container">
       <section class="hero">
         <div class="hero-copy">
-          <p class="brand-title">Communise</p>
-          <h1>{{ community_label }}</h1>
-          <p class="subtitle">Discover services and local favourites in {{ community_label }}.</p>
-          <p class="hero-tagline">Support the businesses and amenities around you.</p>
+          <h1>Connecting Local Communities Through Community Advertising</h1>
+          <p class="subtitle">Discover, share, and support local businesses and services, through your community's digital noticeboard.</p>
+          <p class="hero-tagline">Connecting Communities, Supporting Local.</p>
           <div class="hero-actions">
-            <a class="primary-btn" href="{{ url_for('add_listing') }}">Add a listing</a>
-            <a class="secondary-link" href="#listings">Explore listings</a>
+            <form class="search-form hero-search" method="GET" action="{{ url_for('milton_keynes_page') if community_slug == 'mk' else url_for('woking_page') if community_slug == 'woking' else url_for('buckingham_page') }}">
+              <input
+                type="search"
+                name="q"
+                value="{{ query or '' }}"
+                placeholder="Search for a Listing"
+                aria-label="Search listings"
+              />
+              <button type="submit" class="secondary-btn">Search</button>
+            </form>
+            <a class="hero-cta" href="{{ url_for('add_listing') }}">Add Your Listing</a>
           </div>
-        </div>
-
-        <div class="hero-visual" aria-label="Local neighborhood image collage">
-          <div class="photo-card large"><span>Fresh finds</span></div>
-          <div class="photo-card small top"><span>Local vibe</span></div>
-          <div class="photo-card small bottom"><span>Community</span></div>
-        </div>
-      </section>
-
-      <section class="directory-header">
-        <div class="directory-header-row">
-          <h2>{{ community_label }} Listings</h2>
-          <form class="search-form" method="GET" action="{{ url_for('milton_keynes_page') if community_slug == 'mk' else url_for('woking_page') if community_slug == 'woking' else url_for('buckingham_page') }}">
-            <input
-              type="search"
-              name="q"
-              value="{{ query or '' }}"
-              placeholder="Search shops, services, or addresses"
-              aria-label="Search listings"
-            />
-            <button type="submit" class="secondary-btn">Search</button>
-          </form>
         </div>
       </section>
 
       <nav class="community-tabs" aria-label="Community filters">
-        <a href="{{ url_for('index') }}" class="tab {% if selected_community == 'all' %}active{% endif %}">Featured listings</a>
+        <a href="{{ url_for('index', q=query, category=category) }}" class="tab {% if selected_community == 'all' %}active{% endif %}">All Areas</a>
         {% for community in communities %}
           {% if community.slug == 'miltonkeynes' %}
             <a href="{{ url_for('milton_keynes_page', q=query, category=category) }}" class="tab {% if selected_community == 'mk' %}active{% endif %}">{{ community.label }}</a>
@@ -105,11 +91,30 @@
       {% if listings %}
         <section class="listing-grid" id="listings">
           {% for listing in listings %}
-            <article class="card card-clickable" onclick="window.location.href='{{ url_for('listing_detail', listing_id=listing.id) }}';">
-              {% if feature_flags.get('category', True) %}
-                <div class="tag">{{ listing.category }}</div>
-              {% endif %}
-              <h3>{{ listing.name }}</h3>
+            <article
+              class="card card-clickable"
+              role="link"
+              tabindex="0"
+              aria-label="View details for {{ listing.name }}"
+              onclick="window.location.href='{{ url_for('listing_detail', listing_id=listing.id) }}';"
+              onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
+            >
+              <div class="listing-card-meta">
+                <div>
+                  {% if feature_flags.get('category', True) %}
+                    <div class="tag">{{ listing.category }}</div>
+                  {% endif %}
+                  {% if listing.communitypagefeatured %}
+                    <span class="featured-badge">Featured</span>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="listing-card-title">
+                {% if listing.logo_url or listing.image %}
+                  <img class="listing-thumb" src="{{ listing.logo_url or listing.image }}" alt="{{ listing.name }}" loading="lazy" />
+                {% endif %}
+                <h3>{{ listing.name }}</h3>
+              </div>
               {% if feature_flags.get('description', True) %}
                 <p>{{ listing.description }}</p>
               {% endif %}
@@ -128,21 +133,12 @@
                 {% endif %}
               </ul>
 
-              {% set used_listings = session.get('contacted_listings', []) %}
               <div class="card-actions">
-                {% if feature_flags.get('contact_button', True) %}
-                  {% if listing.id in used_listings %}
-                    <button type="button" class="contact-btn used" disabled onclick="event.stopPropagation();">Already used</button>
-                  {% else %}
-                    <form method="POST" action="{{ url_for('record_contact', listing_id=listing.id) }}" onsubmit="event.stopPropagation();">
-                      <button type="submit" class="contact-btn" onclick="event.stopPropagation();">Used this listing</button>
-                    </form>
-                  {% endif %}
-                {% endif %}
+                <span class="details-cta">View details <span aria-hidden="true">&#8594;</span></span>
                 {% if feature_flags.get('usage_counter', True) %}
                   <span class="usage-badge">
                     {% set usage_total = listing.usage_count | default(0) %}
-                    {{ usage_total }} {% if usage_total == 1 %}time{% else %}times{% endif %}
+                    Viewed {{ usage_total }} {% if usage_total == 1 %}time{% else %}times{% endif %}
                   </span>
                 {% endif %}
               </div>

@@ -1,15 +1,28 @@
+import hashlib
 import json
 import os
+import random
+from datetime import date
+from pathlib import Path
 
 from functools import wraps
 
 from flask import Flask, Response, redirect, render_template, request, session, url_for
+from werkzeug.utils import secure_filename
 
 try:
     from azure.cosmos import CosmosClient, PartitionKey
 except ImportError:  # pragma: no cover - only used when Azure SDK is not installed.
     CosmosClient = None
     PartitionKey = None
+
+try:
+    from azure.identity import DefaultAzureCredential
+    from azure.storage.blob import BlobServiceClient, ContentSettings
+except ImportError:  # pragma: no cover - optional for local filesystem development.
+    DefaultAzureCredential = None
+    BlobServiceClient = None
+    ContentSettings = None
 
 app = Flask(__name__)
 app.secret_key = "local-directory-demo"
@@ -69,6 +82,10 @@ LISTING_FEATURES = {
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 DATA_FILE = os.path.join(DATA_DIR, "listings.json")
+LOCAL_LOGO_DIR = Path(os.path.dirname(__file__)) / "static" / "uploads" / "logos"
+ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+ALLOWED_LOGO_TYPES = {"image/png", "image/jpeg", "image/webp"}
+MAX_LOGO_BYTES = 2 * 1024 * 1024
 
 
 def normalize_community(value):
@@ -148,6 +165,7 @@ def get_seed_data():
             "id": 1,
             "name": "Maple Cafe",
             "category": "Food",
+            "image": "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=160&q=80",
             "description": "Cozy neighborhood coffee shop with fresh pastries and free Wi-Fi.",
             "address": "15 Maple Street",
             "phone": "555-0142",
@@ -287,22 +305,9 @@ def filter_listings(
     query=None,
     category=None,
     community=None,
-    homepage_featured_only=False,
-    community_page_featured_only=False,
+    featured_field=None,
 ):
     filtered = [item for item in listings if item.get('approved', True)]
-
-    if homepage_featured_only:
-        filtered = [
-            item for item in filtered
-            if bool(item.get('homepagefeatured', False))
-        ]
-
-    if community_page_featured_only:
-        filtered = [
-            item for item in filtered
-            if bool(item.get('communitypagefeatured', False))
-        ]
 
     if community:
         selected_community = normalize_community(community)
@@ -327,6 +332,23 @@ def filter_listings(
             item for item in filtered
             if str(item.get('category', '')).lower() == category.lower()
         ]
+
+    if featured_field:
+        featured = [item for item in filtered if bool(item.get(featured_field, False))]
+        non_featured = [item for item in filtered if not bool(item.get(featured_field, False))]
+        seed_parts = (
+            date.today().isoformat(),
+            featured_field,
+            normalize_community(community or 'all'),
+            query or '',
+            category or '',
+        )
+        seed = int.from_bytes(
+            hashlib.sha256('|'.join(seed_parts).encode('utf-8')).digest()[:8],
+            'big',
+        )
+        random.Random(seed).shuffle(non_featured)
+        filtered = featured + non_featured
 
     return filtered
 
@@ -388,20 +410,55 @@ def save_listings(listings):
         json.dump(normalized_items, file, indent=2)
 
 
+def store_logo(upload, listing_id):
+    if not upload or not upload.filename:
+        return ""
+
+    filename = secure_filename(upload.filename)
+    extension = Path(filename).suffix.lower().lstrip(".")
+    if not filename or extension not in ALLOWED_LOGO_EXTENSIONS:
+        raise ValueError("Logo must be a PNG, JPEG, or WebP image.")
+    if upload.content_type not in ALLOWED_LOGO_TYPES:
+        raise ValueError("Logo must be a PNG, JPEG, or WebP image.")
+
+    upload.stream.seek(0, os.SEEK_END)
+    if upload.stream.tell() > MAX_LOGO_BYTES:
+        raise ValueError("Logo must be 2 MB or smaller.")
+    upload.stream.seek(0)
+
+    blob_name = f"{listing_id}/logo.{extension}"
+    account_url = os.getenv("AZURE_STORAGE_ACCOUNT_URL")
+    container_name = os.getenv("AZURE_STORAGE_CONTAINER", "listing-logos")
+    if account_url:
+        if not BlobServiceClient or not DefaultAzureCredential:
+            raise RuntimeError("Azure Blob Storage dependencies are not installed.")
+        client = BlobServiceClient(account_url=account_url, credential=DefaultAzureCredential())
+        blob_client = client.get_blob_client(container=container_name, blob=blob_name)
+        blob_client.upload_blob(
+            upload.stream,
+            overwrite=True,
+            content_settings=ContentSettings(content_type=upload.content_type),
+        )
+        return blob_client.url
+
+    LOCAL_LOGO_DIR.mkdir(parents=True, exist_ok=True)
+    local_path = LOCAL_LOGO_DIR / blob_name
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    upload.save(local_path)
+    return url_for("static", filename=f"uploads/logos/{blob_name}")
+
+
 @app.route('/')
 def index():
     query = request.args.get('q', '').strip()
     category = request.args.get('category', 'All').strip()
     all_listings = load_listings()
-    listings = [
-        item for item in all_listings
-        if bool(item.get('homepagefeatured', False))
-    ]
+    listings = all_listings
     filtered = filter_listings(
         listings,
         query=query,
         category=category if category != 'All' else None,
-        homepage_featured_only=True,
+        featured_field='homepagefeatured',
     )
     communities = get_community_options(all_listings)
     return render_template(
@@ -409,7 +466,7 @@ def index():
         listings=filtered,
         query=query,
         category=category,
-        categories=get_categories(listings),
+        categories=get_categories(all_listings),
         communities=communities,
         community_slug='all',
         community_label='Featured listings',
@@ -440,7 +497,7 @@ def community_page(community_slug=None):
         query=query,
         category=category if category != 'All' else None,
         community=normalized,
-        community_page_featured_only=True,
+        featured_field='communitypagefeatured',
     )
     communities = get_community_options(all_listings)
     template_name = get_community_template(normalized)
@@ -480,6 +537,7 @@ def add_listing():
         opening_hours = request.form.get('opening_hours', '').strip()
         additional_information = request.form.get('additional_information', '').strip()
         deals = request.form.get('deals', '').strip()
+        logo = request.files.get('logo')
 
         if not name or category not in CATEGORY_OPTIONS or not address:
             return render_template(
@@ -499,6 +557,17 @@ def add_listing():
                 continue
 
         next_id = max(numeric_ids, default=0) + 1
+        try:
+            logo_url = store_logo(logo, next_id)
+        except (OSError, RuntimeError, ValueError) as error:
+            return render_template(
+                'add_listing.html',
+                error=str(error),
+                form=request.form,
+                communities=communities,
+                selected_community=community,
+            )
+
         new_listing = normalize_listing({
             'id': next_id,
             'name': name,
@@ -516,7 +585,9 @@ def add_listing():
             'opening_hours': opening_hours,
             'additional_information': additional_information,
             'deals': deals,
+            'logo_url': logo_url,
             'approved': False,
+            'pending_action': 'add',
             'homepagefeatured': True,
             'communitypagefeatured': True,
         })
@@ -537,12 +608,107 @@ def add_listing():
         selected_community=selected_community,
     )
 
+
+@app.route('/listing/<listing_id>/edit', methods=['GET', 'POST'])
+def edit_listing(listing_id):
+    listings = load_listings()
+    listing = next((item for item in listings if str(item.get('id')) == str(listing_id)), None)
+    if listing is None:
+        return render_template('404.html', communities=get_community_options(listings)), 404
+
+    communities = get_community_options(listings)
+    selected_community = normalize_community(listing.get('community'))
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        category = request.form.get('category', '').strip()
+        address = request.form.get('address', '').strip()
+        community = normalize_community(request.form.get('community') or selected_community)
+
+        if not name or category not in CATEGORY_OPTIONS or not address:
+            return render_template(
+                'add_listing.html',
+                error='Please provide a business name, valid category, and address.',
+                form=request.form,
+                listing=listing,
+                editing=True,
+                communities=communities,
+                selected_community=community,
+            )
+
+        updated_values = {
+            'name': name,
+            'category': category,
+            'description': request.form.get('description', '').strip() or 'A local spot to discover and support.',
+            'address': address,
+            'phone': (request.form.get('phone_number') or request.form.get('phone') or '').strip(),
+            'website': request.form.get('website', '').strip(),
+            'email': request.form.get('email', '').strip(),
+            'instagram': request.form.get('instagram', '').strip(),
+            'facebook': request.form.get('facebook', '').strip(),
+            'whatsapp_group': (request.form.get('whatsapp_group') or request.form.get('whatsappgroup') or '').strip(),
+            'community': community,
+            'sub_community': request.form.get('sub_community', '').strip(),
+            'opening_hours': request.form.get('opening_hours', '').strip(),
+            'additional_information': request.form.get('additional_information', '').strip(),
+            'deals': request.form.get('deals', '').strip(),
+        }
+
+        logo = request.files.get('logo')
+        try:
+            if logo and logo.filename:
+                updated_values['logo_url'] = store_logo(logo, listing_id)
+        except (OSError, RuntimeError, ValueError) as error:
+            return render_template(
+                'add_listing.html',
+                error=str(error),
+                form=request.form,
+                listing=listing,
+                editing=True,
+                communities=communities,
+                selected_community=community,
+            )
+
+        listing['pending_changes'] = updated_values
+        listing['pending_action'] = 'edit'
+        save_listings(listings)
+        return redirect(url_for('index'))
+
+    return render_template(
+        'add_listing.html',
+        form=listing,
+        listing=listing,
+        editing=True,
+        communities=communities,
+        selected_community=selected_community,
+    )
+
+
+@app.route('/listing/<listing_id>/delete', methods=['POST'])
+def request_listing_deletion(listing_id):
+    listings = load_listings()
+    for item in listings:
+        if str(item.get('id')) == str(listing_id):
+            item['pending_action'] = 'delete'
+            save_listings(listings)
+            break
+    return redirect(url_for('index'))
+
 @app.route('/listing/<listing_id>')
 def listing_detail(listing_id):
+    listing_id = str(listing_id)
+    listings = load_listings()
     listing = None
-    for item in load_listings():
-        if str(item.get('id')) == str(listing_id):
+    viewed_listings = {str(item) for item in session.get('viewed_listings', [])}
+    for item in listings:
+        if str(item.get('id')) == listing_id:
             listing = item
+            if listing_id not in viewed_listings:
+                item['usage_count'] = int(item.get('usage_count', 0) or 0) + 1
+                save_listings(listings)
+                viewed_listings.add(listing_id)
+                session['viewed_listings'] = list(viewed_listings)
+                session.modified = True
             break
 
     if listing is None:
@@ -559,7 +725,42 @@ def listing_detail(listing_id):
 @app.route('/admin')
 @requires_auth
 def admin():
-    pending = [item for item in load_listings() if not item.get('approved', True)]
+    field_labels = {
+        'name': 'Name',
+        'category': 'Category',
+        'description': 'Description',
+        'address': 'Address',
+        'phone': 'Phone',
+        'website': 'Website',
+        'email': 'Email',
+        'instagram': 'Instagram',
+        'facebook': 'Facebook',
+        'whatsapp_group': 'WhatsApp group',
+        'community': 'Community',
+        'sub_community': 'Sub community',
+        'opening_hours': 'Opening hours',
+        'additional_information': 'Additional information',
+        'deals': 'Deals / special promotions',
+        'logo_url': 'Logo',
+    }
+    pending = []
+    for item in load_listings():
+        if item.get('approved', True) and not item.get('pending_action'):
+            continue
+        review_item = dict(item)
+        if item.get('pending_action') == 'edit':
+            pending_changes = item.get('pending_changes') or {}
+            review_item['pending_diff'] = [
+                {
+                    'label': field_labels.get(field, field.replace('_', ' ').title()),
+                    'before': item.get(field) or 'Not set',
+                    'after': value or 'Not set',
+                }
+                for field, value in pending_changes.items()
+                if value != item.get(field)
+            ]
+            review_item.update(pending_changes)
+        pending.append(review_item)
     return render_template('admin.html', listings=pending)
 
 
@@ -569,7 +770,14 @@ def approve_listing(listing_id):
     listings = load_listings()
     for item in listings:
         if str(item.get('id')) == str(listing_id):
+            if item.get('pending_action', 'add') == 'delete':
+                listings.remove(item)
+                save_listings(listings)
+                return redirect(url_for('admin'))
+            if item.get('pending_action') == 'edit':
+                item.update(item.pop('pending_changes', {}))
             item['approved'] = True
+            item['pending_action'] = ''
             save_listings(listings)
             break
     return redirect(url_for('admin'))
@@ -579,7 +787,15 @@ def approve_listing(listing_id):
 @requires_auth
 def reject_listing(listing_id):
     listings = load_listings()
-    listings = [item for item in listings if str(item.get('id')) != str(listing_id)]
+    for item in listings:
+        if str(item.get('id')) == str(listing_id):
+            if item.get('pending_action', 'add') == 'add':
+                listings.remove(item)
+            else:
+                item.pop('pending_changes', None)
+                item['approved'] = True
+                item['pending_action'] = ''
+            break
     save_listings(listings)
     return redirect(url_for('admin'))
 

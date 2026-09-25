@@ -9,10 +9,11 @@
   <body>
     <header class="topbar">
       <div class="container nav">
-        <div class="brand">Communise Admin</div>
+        <a class="brand" href="{{ url_for('index') }}">
+          <img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" />
+        </a>
         <nav>
           <a href="{{ url_for('index') }}">Home</a>
-          <a href="{{ url_for('admin') }}">Admin</a>
         </nav>
       </div>
     </header>
@@ -24,19 +25,87 @@
 
         {% if listings %}
           {% for listing in listings %}
-            <article class="admin-item">
-              <div>
-                <div class="tag">{{ listing.category }}</div>
-                <h3>{{ listing.name }}</h3>
-                <p>{{ listing.description }}</p>
-                <ul>
-                  <li><strong>Address:</strong> {{ listing.address }}</li>
-                  {% if listing.phone %}<li><strong>Phone:</strong> {{ listing.phone }}</li>{% endif %}
-                  {% if listing.website %}<li><strong>Website:</strong> {{ listing.website }}</li>{% endif %}
-                </ul>
+            <article class="admin-item detail-card">
+              <div class="detail-layout">
+                <div class="detail-content">
+                  <div class="detail-header">
+                    <div class="detail-heading">
+                      <div class="detail-meta">
+                        <p class="eyebrow">Pending review</p>
+                        <div class="tag detail-category">{{ listing.category }}</div>
+                      </div>
+                      {% set review_action = listing.pending_action or 'add' %}
+                      <div class="review-action review-action-{{ review_action }}">
+                        {{ review_action|capitalize }} Listing
+                      </div>
+                      {% if review_action in ['edit', 'delete'] %}
+                        <p class="review-note">The current approved listing remains visible until this request is resolved.</p>
+                      {% endif %}
+                      {% if review_action == 'edit' and listing.pending_diff %}
+                        <section class="change-summary" aria-label="Changes in this edit">
+                          <h2>Changes in this edit</h2>
+                          {% for change in listing.pending_diff %}
+                            <div class="change-row">
+                              <strong>{{ change.label }}</strong>
+                              <div class="change-values">
+                                <span><b>Before:</b> {{ change.before }}</span>
+                                <span><b>After:</b> {{ change.after }}</span>
+                              </div>
+                            </div>
+                          {% endfor %}
+                        </section>
+                      {% endif %}
+                      <h1>{{ listing.name }}</h1>
+                    </div>
+                  </div>
+                  {% if listing.description %}
+                    <p class="detail-description">{{ listing.description }}</p>
+                  {% endif %}
+                  <div class="detail-grid">
+                  {% for label, value in [
+                    ('Community', listing.community),
+                    ('Sub community', listing.sub_community),
+                    ('Address', listing.address),
+                    ('Phone', listing.phone),
+                    ('Website', listing.website),
+                    ('Email', listing.email),
+                    ('Instagram', listing.instagram),
+                    ('Facebook', listing.facebook),
+                    ('WhatsApp group', listing.whatsapp_group),
+                    ('Opening hours', listing.opening_hours),
+                  ] %}
+                    {% if value %}
+                      <div class="detail-item">
+                        <strong>{{ label }}</strong>
+                        <p>{{ value }}</p>
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                  </div>
+
+                  {% if listing.additional_information %}
+                    <div class="detail-callout">
+                      <strong>Additional information</strong>
+                      <p>{{ listing.additional_information }}</p>
+                    </div>
+                  {% endif %}
+
+                  {% if listing.deals %}
+                    <div class="detail-callout accent">
+                      <strong>Deals / special promotions</strong>
+                      <p>{{ listing.deals }}</p>
+                    </div>
+                  {% endif %}
+                </div>
+
+                {% if listing.logo_url or listing.image %}
+                  <aside class="detail-media">
+                    <img class="detail-logo" src="{{ listing.logo_url or listing.image }}" alt="{{ listing.name }} logo" />
+                  </aside>
+                {% endif %}
               </div>
 
-              <div class="admin-actions">
+              <div class="detail-actions admin-actions">
                 <form method="POST" action="{{ url_for('approve_listing', listing_id=listing.id) }}">
                   <button type="submit" class="primary-btn small-btn">Approve</button>
                 </form>

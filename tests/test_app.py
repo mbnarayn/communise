@@ -1,8 +1,10 @@
+import io
 import os
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-from app import app, get_seed_data, normalize_listing, save_listings
+from app import app, filter_listings, get_seed_data, normalize_listing, save_listings
 
 
 class AppTests(unittest.TestCase):
@@ -30,14 +32,14 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Communise', response.data)
 
-    def test_home_page_shows_only_featured_listings_and_all_communities(self):
+    def test_home_page_prioritizes_featured_listings_and_shows_all_communities(self):
         save_listings([
             *get_seed_data(),
             {
                 'id': 99,
                 'name': 'Hidden Listing',
                 'category': 'Other',
-                'description': 'This should not appear on the homepage.',
+                'description': 'This should appear after featured listings.',
                 'address': '1 Hidden Lane',
                 'phone': '555-0000',
                 'website': 'https://example.com/hidden',
@@ -52,8 +54,26 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Woking', response.data)
         self.assertIn(b'Buckingham', response.data)
-        self.assertIn(b'Featured listings', response.data)
-        self.assertNotIn(b'Hidden Listing', response.data)
+        self.assertIn(b'Listings across all of Communise', response.data)
+        self.assertNotIn(b'Used this listing', response.data)
+        self.assertIn(b'Viewed 0 times', response.data)
+        self.assertIn(b'Hidden Listing', response.data)
+        self.assertLess(response.data.index(b'Maple Cafe'), response.data.index(b'Hidden Listing'))
+
+    def test_non_featured_listing_order_is_deterministic(self):
+        listings = [
+            {'id': 'featured', 'name': 'Featured', 'approved': True, 'homepagefeatured': True},
+            {'id': 'first', 'name': 'First', 'approved': True, 'homepagefeatured': False},
+            {'id': 'second', 'name': 'Second', 'approved': True, 'homepagefeatured': False},
+            {'id': 'third', 'name': 'Third', 'approved': True, 'homepagefeatured': False},
+        ]
+
+        first_order = [item['id'] for item in filter_listings(listings, featured_field='homepagefeatured')]
+        second_order = [item['id'] for item in filter_listings(listings, featured_field='homepagefeatured')]
+
+        self.assertEqual(first_order, second_order)
+        self.assertEqual(first_order[0], 'featured')
+        self.assertCountEqual(first_order, ['featured', 'first', 'second', 'third'])
 
     def test_mk_community_route_shows_milton_keynes_listings(self):
         response = self.client.get('/mk')
@@ -79,6 +99,43 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         public_response = self.client.get('/')
         self.assertNotIn(b'Corner Market Pending Test', public_response.data)
+
+    def test_local_logo_upload_is_saved_and_referenced(self):
+        response = self.client.post('/add', data={
+            'name': 'Logo Upload Test Shop',
+            'category': 'Shopping',
+            'description': 'A listing with a local logo.',
+            'address': '12 Logo Lane',
+            'email': 'hello@logo-shop.example',
+            'instagram': '@logo_shop',
+            'facebook': 'Logo Shop',
+            'whatsapp_group': 'https://chat.whatsapp.com/logo-shop',
+            'sub_community': 'Town Centre',
+            'opening_hours': 'Mon-Fri 9am-5pm',
+            'additional_information': 'Accessible entrance.',
+            'deals': '10% off this week.',
+            'logo': (io.BytesIO(b'fake-png-content'), 'logo.png'),
+        }, content_type='multipart/form-data')
+        self.assertEqual(response.status_code, 302)
+
+        from app import load_listings
+        listing = next(item for item in load_listings() if item.get('name') == 'Logo Upload Test Shop')
+        logo_url = listing.get('logo_url', '')
+        self.assertTrue(logo_url.startswith('/static/uploads/logos/'))
+
+        admin_response = self.client.get('/admin', headers={
+            'Authorization': 'Basic YWRtaW46Y2hhbmdlLW1l',
+        })
+        for value in (logo_url, 'hello@logo-shop.example', '@logo_shop',
+                      'Logo Shop', 'Town Centre', 'Mon-Fri 9am-5pm',
+                      'Accessible entrance.', '10% off this week.'):
+            self.assertIn(value.encode(), admin_response.data)
+
+        logo_path = Path(__file__).resolve().parents[1] / logo_url.lstrip('/')
+        self.assertTrue(logo_path.is_file())
+        logo_path.unlink()
+        if not any(logo_path.parent.iterdir()):
+            logo_path.parent.rmdir()
 
     def test_admin_can_approve_listing(self):
         self.client.post('/add', data={
@@ -239,6 +296,75 @@ class AppTests(unittest.TestCase):
         self.assertIn(b'@thegrovecommunitymarket', response.data)
         self.assertIn(b'Thu-Sun 9am-4pm', response.data)
         self.assertIn(b'10% off selected stalls on market day.', response.data)
+
+    def test_listing_detail_page_shows_listing_image(self):
+        response = self.client.get('/listing/1')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'photo-1501339847302-ac426a4a7cbb', response.data)
+
+    def test_listing_can_be_edited_and_returns_to_admin_review(self):
+        edit_page = self.client.get('/listing/1/edit')
+        self.assertEqual(edit_page.status_code, 200)
+        self.assertIn(b'Maple Cafe', edit_page.data)
+        self.assertIn(b'value="555-0142"', edit_page.data)
+
+        response = self.client.post('/listing/1/edit', data={
+            'community': 'miltonkeynes',
+            'name': 'Updated Maple Cafe',
+            'category': 'Food',
+            'description': 'Updated description.',
+            'address': '99 New Maple Street',
+            'phone_number': '555-0999',
+        })
+        self.assertEqual(response.status_code, 302)
+
+        from app import load_listings
+        listing = next(item for item in load_listings() if item.get('id') == '1')
+        self.assertEqual(listing.get('name'), 'Maple Cafe')
+        self.assertEqual(listing.get('address'), '15 Maple Street')
+        self.assertTrue(listing.get('approved'))
+        self.assertEqual(listing.get('pending_action'), 'edit')
+        self.assertEqual(listing['pending_changes'].get('name'), 'Updated Maple Cafe')
+
+        public_response = self.client.get('/')
+        self.assertIn(b'Maple Cafe', public_response.data)
+        self.assertNotIn(b'Updated Maple Cafe', public_response.data)
+
+        admin_response = self.client.get('/admin', headers={
+            'Authorization': 'Basic YWRtaW46Y2hhbmdlLW1l',
+        })
+        self.assertIn(b'Edit Listing', admin_response.data)
+        self.assertIn(b'Changes in this edit', admin_response.data)
+        self.assertIn(b'Before:', admin_response.data)
+        self.assertIn(b'After:', admin_response.data)
+
+    def test_listing_delete_requires_review_before_removal(self):
+        response = self.client.post('/listing/1/delete')
+        self.assertEqual(response.status_code, 302)
+
+        from app import load_listings
+        listing = next(item for item in load_listings() if item.get('id') == '1')
+        self.assertEqual(listing.get('pending_action'), 'delete')
+        self.assertTrue(listing.get('approved'))
+
+        public_response = self.client.get('/')
+        self.assertIn(b'Maple Cafe', public_response.data)
+
+        auth_headers = {'Authorization': 'Basic YWRtaW46Y2hhbmdlLW1l'}
+        admin_response = self.client.get('/admin', headers=auth_headers)
+        self.assertIn(b'Delete Listing', admin_response.data)
+
+        self.client.post('/admin/approve/1', headers=auth_headers)
+        self.assertFalse(any(item.get('id') == '1' for item in load_listings()))
+
+    def test_listing_detail_view_increments_usage_each_time(self):
+        from app import load_listings
+
+        self.client.get('/listing/6')
+        self.client.get('/listing/6')
+
+        listing = next(item for item in load_listings() if item.get('id') == '6')
+        self.assertEqual(listing.get('usage_count', 0), 1)
 
     def test_search_filters_listings(self):
         response = self.client.get('/?q=pharmacy')
