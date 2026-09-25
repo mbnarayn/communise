@@ -54,8 +54,10 @@ CATEGORY_OPTIONS = [
     "Food",
     "Shopping",
     "Recreation",
+    "Education",
     "Other",
 ]
+LISTINGS_PER_PAGE = 16
 
 # Simple per-page overrides for listing cards. Update these booleans to decide
 # which listing features appear on the homepage vs the community pages.
@@ -113,6 +115,18 @@ def get_community_template(community):
 def get_listing_feature_config(page_name):
     page = str(page_name or "home").lower()
     return LISTING_FEATURES.get(page, LISTING_FEATURES["home"]).copy()
+
+
+def paginate_listings(listings, requested_page):
+    try:
+        page = max(1, int(requested_page or 1))
+    except (TypeError, ValueError):
+        page = 1
+
+    total_pages = max(1, (len(listings) + LISTINGS_PER_PAGE - 1) // LISTINGS_PER_PAGE)
+    page = min(page, total_pages)
+    start = (page - 1) * LISTINGS_PER_PAGE
+    return listings[start:start + LISTINGS_PER_PAGE], page, total_pages
 
 
 def get_community_options(listings):
@@ -452,6 +466,7 @@ def store_logo(upload, listing_id):
 def index():
     query = request.args.get('q', '').strip()
     category = request.args.get('category', 'All').strip()
+    requested_page = request.args.get('page', 1)
     all_listings = load_listings()
     listings = all_listings
     filtered = filter_listings(
@@ -460,10 +475,11 @@ def index():
         category=category if category != 'All' else None,
         featured_field='homepagefeatured',
     )
+    paginated, page, total_pages = paginate_listings(filtered, requested_page)
     communities = get_community_options(all_listings)
     return render_template(
         'index.html',
-        listings=filtered,
+        listings=paginated,
         query=query,
         category=category,
         categories=get_categories(all_listings),
@@ -472,6 +488,9 @@ def index():
         community_label='Featured listings',
         selected_community='all',
         listing_features=get_listing_feature_config('home'),
+        page=page,
+        total_pages=total_pages,
+        pagination_endpoint='index',
     )
 
 
@@ -490,6 +509,7 @@ def community_page(community_slug=None):
 
     query = request.args.get('q', '').strip()
     category = request.args.get('category', 'All').strip()
+    requested_page = request.args.get('page', 1)
     all_listings = load_listings()
     listings = load_listings(normalized)
     filtered = filter_listings(
@@ -499,11 +519,12 @@ def community_page(community_slug=None):
         community=normalized,
         featured_field='communitypagefeatured',
     )
+    paginated, page, total_pages = paginate_listings(filtered, requested_page)
     communities = get_community_options(all_listings)
     template_name = get_community_template(normalized)
     return render_template(
         template_name,
-        listings=filtered,
+        listings=paginated,
         query=query,
         category=category,
         categories=get_categories(listings),
@@ -512,6 +533,9 @@ def community_page(community_slug=None):
         community_label=get_community_label(normalized),
         selected_community=get_community_slug(normalized),
         listing_features=get_listing_feature_config('community'),
+        page=page,
+        total_pages=total_pages,
+        pagination_endpoint=request.endpoint,
     )
 
 
@@ -588,8 +612,8 @@ def add_listing():
             'logo_url': logo_url,
             'approved': False,
             'pending_action': 'add',
-            'homepagefeatured': True,
-            'communitypagefeatured': True,
+            'homepagefeatured': False,
+            'communitypagefeatured': False,
         })
 
         if is_cosmos_configured():

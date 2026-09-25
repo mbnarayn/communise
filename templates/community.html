@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ community_label }} | Communise</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
   </head>
   <body>
@@ -70,7 +71,7 @@
             href="{{ category_target }}"
             class="tab {% if category == tab_name %}active{% endif %}"
           >
-            {{ tab_name }}
+            {{ 'All Categories' if tab_name == 'All' else tab_name }}
           </a>
         {% endfor %}
       </nav>
@@ -108,11 +109,11 @@
                     <span class="featured-badge">Featured</span>
                   {% endif %}
                 </div>
-              </div>
-              <div class="listing-card-title">
                 {% if listing.logo_url or listing.image %}
                   <img class="listing-thumb" src="{{ listing.logo_url or listing.image }}" alt="{{ listing.name }}" loading="lazy" />
                 {% endif %}
+              </div>
+              <div class="listing-card-title">
                 <h3>{{ listing.name }}</h3>
               </div>
               {% if feature_flags.get('description', True) %}
@@ -145,6 +146,17 @@
             </article>
           {% endfor %}
         </section>
+        {% if total_pages > 1 %}
+          <nav class="pagination" aria-label="Listings pages">
+            {% if page > 1 %}
+              <a class="tab" href="{{ url_for(pagination_endpoint, q=query, category=category, page=page - 1) }}">Previous</a>
+            {% endif %}
+            <span class="pagination-status">Page {{ page }} of {{ total_pages }}</span>
+            {% if page < total_pages %}
+              <a class="tab" href="{{ url_for(pagination_endpoint, q=query, category=category, page=page + 1) }}">Next</a>
+            {% endif %}
+          </nav>
+        {% endif %}
       {% else %}
         <p class="empty-state">No listings yet. Be the first to add one.</p>
       {% endif %}

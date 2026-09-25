@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% if editing %}Edit Listing{% else %}Add Listing{% endif %}</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
   </head>
   <body>
@@ -54,7 +55,7 @@
             Category
             <select name="category" required>
               <option value="">Choose a category</option>
-              {% for category in ['Services', 'Lifestyle', 'Food', 'Shopping', 'Recreation', 'Other'] %}
+              {% for category in ['Services', 'Lifestyle', 'Food', 'Shopping', 'Recreation', 'Education', 'Other'] %}
                 <option value="{{ category }}" {% if form and form.category == category %}selected{% endif %}>{{ category }}</option>
               {% endfor %}
             </select>
@@ -82,6 +83,10 @@
               <div>
                 <strong>Recreation</strong>
                 <span>Sports Clubs, Dance Schools, Gyms &amp; Fitness, Martial Arts, Children's Activities, Arts &amp; Hobbies</span>
+              </div>
+              <div>
+                <strong>Education</strong>
+                <span>Tutors, Training Providers, Schools, Learning Centres, and Educational Activities</span>
               </div>
             </div>
           </div>

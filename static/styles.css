@@ -310,11 +310,25 @@ nav a {
   padding-bottom: 50px;
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: -28px 0 40px;
+}
+
+.pagination-status {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 .card {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 14px;
+  padding: 10px;
   box-shadow: var(--shadow);
 }
 
@@ -341,12 +355,12 @@ nav a {
   padding: 0.3rem 0.55rem;
   font-size: 0.7rem;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .featured-badge {
   display: inline-block;
-  margin: 0 0 8px 0.25rem;
+  margin: 0 0 4px 0.25rem;
   padding: 0.3rem 0.55rem;
   border: 1px solid var(--primary);
   border-radius: 999px;
@@ -358,15 +372,16 @@ nav a {
 .listing-card-meta {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
-  min-height: 44px;
-  margin-bottom: 8px;
+  min-height: 36px;
+  margin-bottom: 4px;
 }
 
 .listing-thumb {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
+  width: 50px;
+  height: 50px;
+  flex: 0 0 50px;
   object-fit: cover;
   border-radius: 9px;
   border: 1px solid var(--border);
@@ -375,24 +390,25 @@ nav a {
 .listing-card-title {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.5rem;
 }
 
 .card h3 {
   margin-top: 0;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   font-size: 1.15rem;
 }
 
 .card p {
+  margin: 0.35rem 0;
   color: var(--muted);
-  line-height: 1.4;
+  line-height: 1.3;
   font-size: 0.9rem;
 }
 
 .card ul {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 5px 0 0;
   padding: 0;
   line-height: 1.45;
   font-size: 0.86rem;
@@ -408,8 +424,8 @@ nav a {
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
   border-top: 1px solid var(--border);
 }
 
@@ -573,7 +589,7 @@ select {
 
 .detail-header h1 {
   margin: 0 0 6px;
-  font-size: clamp(1.7rem, 2.5vw, 2.4rem);
+  font-size: clamp(1.4rem, 2vw, 2rem);
 }
 
 .detail-header {
@@ -683,6 +699,13 @@ select {
   align-items: center;
   gap: 1rem;
   margin-top: 0.9rem;
+}
+
+.detail-actions > .primary-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 1rem;
 }
 
 .listing-management-actions {

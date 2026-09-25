@@ -32,6 +32,12 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Communise', response.data)
 
+    def test_education_category_is_available_on_add_listing_form(self):
+        response = self.client.get('/add')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Education', response.data)
+        self.assertIn(b'Tutors, Training Providers', response.data)
+
     def test_home_page_prioritizes_featured_listings_and_shows_all_communities(self):
         save_listings([
             *get_seed_data(),
@@ -99,6 +105,11 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         public_response = self.client.get('/')
         self.assertNotIn(b'Corner Market Pending Test', public_response.data)
+
+        from app import load_listings
+        listing = next(item for item in load_listings() if item.get('name') == 'Corner Market Pending Test')
+        self.assertFalse(listing.get('homepagefeatured'))
+        self.assertFalse(listing.get('communitypagefeatured'))
 
     def test_local_logo_upload_is_saved_and_referenced(self):
         response = self.client.post('/add', data={
