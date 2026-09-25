@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - Pending Listings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container nav">
+        <div class="brand">Communise Admin</div>
+        <nav>
+          <a href="{{ url_for('index') }}">Home</a>
+          <a href="{{ url_for('admin') }}">Admin</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container form-page">
+      <section class="admin-card form-card">
+        <h1>Pending listings</h1>
+        <p>Review new submissions before they appear on the public directory.</p>
+
+        {% if listings %}
+          {% for listing in listings %}
+            <article class="admin-item">
+              <div>
+                <div class="tag">{{ listing.category }}</div>
+                <h3>{{ listing.name }}</h3>
+                <p>{{ listing.description }}</p>
+                <ul>
+                  <li><strong>Address:</strong> {{ listing.address }}</li>
+                  {% if listing.phone %}<li><strong>Phone:</strong> {{ listing.phone }}</li>{% endif %}
+                  {% if listing.website %}<li><strong>Website:</strong> {{ listing.website }}</li>{% endif %}
+                </ul>
+              </div>
+
+              <div class="admin-actions">
+                <form method="POST" action="{{ url_for('approve_listing', listing_id=listing.id) }}">
+                  <button type="submit" class="primary-btn small-btn">Approve</button>
+                </form>
+                <form method="POST" action="{{ url_for('reject_listing', listing_id=listing.id) }}">
+                  <button type="submit" class="danger-btn">Reject</button>
+                </form>
+              </div>
+            </article>
+          {% endfor %}
+        {% else %}
+          <p class="empty-state">No pending listings.</p>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>

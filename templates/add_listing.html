@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Add Listing</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container nav">
+        <div class="brand">Communise</div>
+        <nav>
+          <a href="{{ url_for('index') }}">Home</a>
+          <a href="{{ url_for('add_listing') }}">Add Listing</a>
+          <a href="{{ url_for('admin') }}">Admin</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container form-page">
+      <section class="form-card">
+        <h1>Add a local listing</h1>
+        <p>Share a shop, service, or amenity with the community.</p>
+
+        {% if error %}
+          <div class="error-banner">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('add_listing') }}">
+          <label>
+            Community
+            <select name="community">
+              {% for community in communities %}
+                <option value="{{ community.slug }}" {% if community.slug == selected_community %}selected{% endif %}>
+                  {{ community.label }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label>
+            Name
+            <input type="text" name="name" value="{{ form.name if form and form.name else '' }}" required />
+          </label>
+
+          <label>
+            Category
+            <input type="text" name="category" value="{{ form.category if form and form.category else '' }}" placeholder="e.g. Shop, Coffee, Services" required />
+          </label>
+
+          <label>
+            Description
+            <textarea name="description" rows="4" placeholder="Tell people what makes this place special">{{ form.description if form and form.description else '' }}</textarea>
+          </label>
+
+          <label>
+            Address
+            <input type="text" name="address" value="{{ form.address if form and form.address else '' }}" required />
+          </label>
+
+          <label>
+            Phone number
+            <input type="tel" name="phone_number" value="{{ form.phone_number if form and form.phone_number else '' }}" />
+          </label>
+
+          <label>
+            Website
+            <input type="url" name="website" value="{{ form.website if form and form.website else '' }}" placeholder="https://example.com" />
+          </label>
+
+          <label>
+            Email address
+            <input type="email" name="email" value="{{ form.email if form and form.email else '' }}" placeholder="hello@example.com" />
+          </label>
+
+          <label>
+            Instagram
+            <input type="text" name="instagram" value="{{ form.instagram if form and form.instagram else '' }}" placeholder="@yourbusiness" />
+          </label>
+
+          <label>
+            Facebook
+            <input type="text" name="facebook" value="{{ form.facebook if form and form.facebook else '' }}" placeholder="Business name or page" />
+          </label>
+
+          <label>
+            WhatsApp group link
+            <input type="url" name="whatsapp_group" value="{{ form.whatsapp_group if form and form.whatsapp_group else '' }}" placeholder="https://chat.whatsapp.com/..." />
+          </label>
+
+          <label>
+            Sub community
+            <input type="text" name="sub_community" value="{{ form.sub_community if form and form.sub_community else '' }}" placeholder="e.g. Town Centre, West End" />
+          </label>
+
+          <label>
+            Opening hours
+            <input type="text" name="opening_hours" value="{{ form.opening_hours if form and form.opening_hours else '' }}" placeholder="Mon-Sat 9am-5pm" />
+          </label>
+
+          <label>
+            Additional information
+            <textarea name="additional_information" rows="3" placeholder="Anything else people should know">{{ form.additional_information if form and form.additional_information else '' }}</textarea>
+          </label>
+
+          <label>
+            Deals / special promotions
+            <textarea name="deals" rows="3" placeholder="Add current offers or promotions">{{ form.deals if form and form.deals else '' }}</textarea>
+          </label>
+
+          <button type="submit" class="primary-btn">Save Listing</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

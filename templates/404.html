@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Page not found | Communise</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container nav">
+        <div class="brand">Communise</div>
+        <nav>
+          <a href="{{ url_for('index') }}">Home</a>
+          {% for community in communities %}
+            {% set nav_slug = 'mk' if community.slug == 'miltonkeynes' else community.slug %}
+            <a href="{{ url_for('community_page', community_slug=nav_slug) }}">{{ community.label }}</a>
+          {% endfor %}
+          <a href="{{ url_for('add_listing') }}">Add Listing</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="form-card">
+        <h1>Page not found</h1>
+        <p>The community you requested is not available yet.</p>
+        <a class="primary-btn" href="{{ url_for('index') }}">Return home</a>
+      </section>
+    </main>
+  </body>
+</html>

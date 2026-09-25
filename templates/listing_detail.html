@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ listing.name }} | Communise</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container nav">
+        <div class="brand">Communise</div>
+        <nav>
+          <a href="{{ url_for('index') }}">Home</a>
+          {% for community in communities %}
+            {% if community.slug == 'miltonkeynes' %}
+              <a href="{{ url_for('milton_keynes_page') }}">{{ community.label }}</a>
+            {% elif community.slug == 'bedford' %}
+              <a href="{{ url_for('bedford_page') }}">{{ community.label }}</a>
+            {% elif community.slug == 'buckingham' %}
+              <a href="{{ url_for('buckingham_page') }}">{{ community.label }}</a>
+            {% endif %}
+          {% endfor %}
+          <a href="{{ url_for('add_listing') }}">Add Listing</a>
+          <a href="{{ url_for('admin') }}">Admin</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container detail-page">
+      <section class="detail-card">
+        <div class="detail-header">
+          <div class="tag">{{ listing.category }}</div>
+          {% if listing.community %}
+            <p class="eyebrow">{{ community_label }}</p>
+          {% endif %}
+          <h1>{{ listing.name }}</h1>
+        </div>
+
+        {% if listing.description %}
+          <p class="detail-description">{{ listing.description }}</p>
+        {% endif %}
+
+        <div class="detail-grid">
+          {% if listing.address %}
+            <div class="detail-item">
+              <strong>Address</strong>
+              <p>{{ listing.address }}</p>
+            </div>
+          {% endif %}
+
+          {% if listing.phone %}
+            <div class="detail-item">
+              <strong>Phone number</strong>
+              <p>{{ listing.phone }}</p>
+            </div>
+          {% endif %}
+
+          {% if listing.email %}
+            <div class="detail-item">
+              <strong>Email address</strong>
+              <p><a href="mailto:{{ listing.email }}">{{ listing.email }}</a></p>
+            </div>
+          {% endif %}
+
+          {% if listing.website %}
+            <div class="detail-item">
+              <strong>Website</strong>
+              <p><a href="{{ listing.website }}" target="_blank" rel="noreferrer">{{ listing.website }}</a></p>
+            </div>
+          {% endif %}
+
+          {% if listing.instagram %}
+            <div class="detail-item">
+              <strong>Instagram</strong>
+              <p><a href="https://instagram.com/{{ listing.instagram.lstrip('@') }}" target="_blank" rel="noreferrer">{{ listing.instagram }}</a></p>
+            </div>
+          {% endif %}
+
+          {% if listing.facebook %}
+            <div class="detail-item">
+              <strong>Facebook</strong>
+              <p>{{ listing.facebook }}</p>
+            </div>
+          {% endif %}
+
+          {% if listing.whatsapp_group %}
+            <div class="detail-item">
+              <strong>WhatsApp group</strong>
+              <p><a href="{{ listing.whatsapp_group }}" target="_blank" rel="noreferrer">Open WhatsApp group</a></p>
+            </div>
+          {% endif %}
+
+          {% if listing.sub_community %}
+            <div class="detail-item">
+              <strong>Sub community</strong>
+              <p>{{ listing.sub_community }}</p>
+            </div>
+          {% endif %}
+
+          {% if listing.opening_hours %}
+            <div class="detail-item">
+              <strong>Opening hours</strong>
+              <p>{{ listing.opening_hours }}</p>
+            </div>
+          {% endif %}
+        </div>
+
+        {% if listing.additional_information %}
+          <div class="detail-callout">
+            <strong>Additional information</strong>
+            <p>{{ listing.additional_information }}</p>
+          </div>
+        {% endif %}
+
+        {% if listing.deals %}
+          <div class="detail-callout accent">
+            <strong>Deals / special promotions</strong>
+            <p>{{ listing.deals }}</p>
+          </div>
+        {% endif %}
+
+        <div class="detail-actions">
+          <a class="primary-btn" href="{{ url_for('index') }}">Back to listings</a>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
