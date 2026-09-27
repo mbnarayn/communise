@@ -111,7 +111,7 @@
                   <li><strong>Address:</strong> {{ listing.address }}</li>
                 {% endif %}
                 {% if feature_flags.get('phone', True) and listing.phone %}
-                  <li><strong>Phone:</strong> {{ listing.phone }}</li>
+                  <li><strong>Phone:</strong> {{ listing.phone | phone_format }}</li>
                 {% endif %}
                 {% if feature_flags.get('website', True) and listing.website %}
                   <li>

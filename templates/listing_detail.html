@@ -53,7 +53,7 @@
           {% if listing.phone %}
             <div class="detail-item">
               <strong>Phone number</strong>
-              <p>{{ listing.phone }}</p>
+              <p><a href="tel:{{ listing.phone | phone_link }}">{{ listing.phone | phone_format }}</a></p>
             </div>
           {% endif %}
 

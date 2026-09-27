@@ -112,7 +112,7 @@
 
           <label>
             Phone number
-            <input type="tel" name="phone_number" value="{{ (form.get('phone_number') or form.get('phone', '')) if form else '' }}" />
+            <input type="tel" name="phone_number" value="{{ ((form.get('phone_number') or form.get('phone', '')) if form else listing.phone if listing else '') | phone_format }}" placeholder="01234 567890" inputmode="numeric" pattern="[0-9]{5} ?[0-9]{6}" />
           </label>
 
           <label>
@@ -187,5 +187,14 @@
         </form>
       </section>
     </main>
+    <script>
+      const phoneInput = document.querySelector('input[name="phone_number"]');
+      if (phoneInput) {
+        phoneInput.addEventListener('input', () => {
+          const digits = phoneInput.value.replace(/\D/g, '').slice(0, 11);
+          phoneInput.value = digits.length > 5 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits;
+        });
+      }
+    </script>
   </body>
 </html>
