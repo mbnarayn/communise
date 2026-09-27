@@ -15,15 +15,9 @@
         </a>
         <nav>
           <a href="{{ url_for('index') }}">Home</a>
-          {% for community in communities %}
-            {% if community.slug == 'miltonkeynes' %}
-              <a href="{{ url_for('milton_keynes_page') }}">{{ community.label }}</a>
-            {% elif community.slug == 'woking' %}
-              <a href="{{ url_for('woking_page') }}">{{ community.label }}</a>
-            {% elif community.slug == 'buckingham' %}
-              <a href="{{ url_for('buckingham_page') }}">{{ community.label }}</a>
-            {% endif %}
-          {% endfor %}
+          <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
+          <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
+          <a href="{{ url_for('woking_page') }}">Woking</a>
         </nav>
       </div>
     </header>

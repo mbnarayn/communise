@@ -1,75 +1,5 @@
 [
   {
-    "id": "9",
-    "name": "sdfdsf",
-    "category": "Shopping",
-    "description": "dfs",
-    "address": "adsfdsf",
-    "phone": "",
-    "website": "",
-    "email": "",
-    "instagram": "",
-    "facebook": "",
-    "whatsapp_group": "",
-    "community": "miltonkeynes",
-    "sub_community": "",
-    "opening_hours": "",
-    "additional_information": "",
-    "deals": "",
-    "logo_url": "",
-    "approved": true,
-    "pending_action": "",
-    "homepagefeatured": false,
-    "communitypagefeatured": false,
-    "usage_count": 0
-  },
-  {
-    "id": "8",
-    "name": "dfsD",
-    "category": "Food",
-    "description": "A local spot to discover and support.",
-    "address": "SDF",
-    "phone": "",
-    "website": "",
-    "email": "",
-    "instagram": "",
-    "facebook": "",
-    "whatsapp_group": "",
-    "community": "miltonkeynes",
-    "sub_community": "",
-    "opening_hours": {
-      "monday": [
-        {
-          "open": "01:07",
-          "close": "02:07"
-        }
-      ],
-      "tuesday": [],
-      "wednesday": [],
-      "thursday": [
-        {
-          "open": "18:00",
-          "close": "21:00"
-        },
-        {
-          "open": "22:00",
-          "close": "21:00"
-        }
-      ],
-      "friday": [],
-      "saturday": [],
-      "sunday": []
-    },
-    "additional_information": "",
-    "deals": "",
-    "logo_url": "",
-    "approved": true,
-    "pending_action": "",
-    "homepagefeatured": false,
-    "communitypagefeatured": false,
-    "usage_count": 0
-  },
-  {
     "id": "1",
     "name": "Maple Cafe",
     "category": "Food",
@@ -168,31 +98,7 @@
     "deals": "10% off selected stalls on market day.",
     "homepagefeatured": true,
     "communitypagefeatured": true,
-    "usage_count": 1,
+    "usage_count": 0,
     "approved": true
-  },
-  {
-    "id": "7",
-    "name": "Logo Upload Test Shop",
-    "category": "Shopping",
-    "description": "A listing with a local logo.",
-    "address": "12 Logo Lane",
-    "phone": "",
-    "website": "",
-    "email": "hello@logo-shop.example",
-    "instagram": "@logo_shop",
-    "facebook": "Logo Shop",
-    "whatsapp_group": "https://chat.whatsapp.com/logo-shop",
-    "community": "miltonkeynes",
-    "sub_community": "Town Centre",
-    "opening_hours": "Mon-Fri 9am-5pm",
-    "additional_information": "Accessible entrance.",
-    "deals": "10% off this week.",
-    "logo_url": "/static/uploads/logos/7/logo.png",
-    "approved": false,
-    "pending_action": "add",
-    "homepagefeatured": false,
-    "communitypagefeatured": false,
-    "usage_count": 0
   }
 ]

@@ -15,15 +15,9 @@
         </a>
         <nav>
           <a href="{{ url_for('index') }}">Home</a>
-          {% for community in communities %}
-            {% if community.slug == 'miltonkeynes' %}
-              <a href="{{ url_for('milton_keynes_page') }}">{{ community.label }}</a>
-            {% elif community.slug == 'woking' %}
-              <a href="{{ url_for('woking_page') }}">{{ community.label }}</a>
-            {% elif community.slug == 'buckingham' %}
-              <a href="{{ url_for('buckingham_page') }}">{{ community.label }}</a>
-            {% endif %}
-          {% endfor %}
+          <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
+          <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
+          <a href="{{ url_for('woking_page') }}">Woking</a>
         </nav>
       </div>
     </header>
@@ -31,9 +25,8 @@
     <main class="container">
       <section class="hero">
         <div class="hero-copy">
-          <h1>Connecting Local Communities Through Community Advertising</h1>
+          <h1>Supporting Local Communities Through Community Advertising</h1>
           <p class="subtitle">Discover, share, and support local businesses and services, through your community's digital noticeboard.</p>
-          <p class="hero-tagline">Connecting Communities, Supporting Local.</p>
           <div class="hero-actions">
             <form class="search-form hero-search" method="GET" action="{{ url_for('index') }}">
               <input
@@ -52,17 +45,12 @@
 
       <nav class="community-tabs" aria-label="Community filters">
         <a href="{{ url_for('index', q=query, category=category) }}" class="tab {% if selected_community == 'all' %}active{% endif %}">All Areas</a>
-        {% for community in communities %}
-          {% if community.slug == 'miltonkeynes' %}
-            <a href="{{ url_for('milton_keynes_page', q=query, category=category) }}" class="tab {% if selected_community == 'mk' %}active{% endif %}">{{ community.label }}</a>
-          {% elif community.slug == 'woking' %}
-            <a href="{{ url_for('woking_page', q=query, category=category) }}" class="tab {% if selected_community == 'woking' %}active{% endif %}">{{ community.label }}</a>
-          {% elif community.slug == 'buckingham' %}
-            <a href="{{ url_for('buckingham_page', q=query, category=category) }}" class="tab {% if selected_community == 'buckingham' %}active{% endif %}">{{ community.label }}</a>
-          {% endif %}
-        {% endfor %}
+        <a href="{{ url_for('milton_keynes_page', q=query, category=category) }}" class="tab {% if selected_community == 'mk' %}active{% endif %}">Milton Keynes</a>
+        <a href="{{ url_for('buckingham_page', q=query, category=category) }}" class="tab {% if selected_community == 'buckingham' %}active{% endif %}">Buckingham</a>
+        <a href="{{ url_for('woking_page', q=query, category=category) }}" class="tab {% if selected_community == 'woking' %}active{% endif %}">Woking</a>
       </nav>
 
+      <p class="filter-row-label">Listing Categories</p>
       <nav class="category-tabs" aria-label="Category filters">
         {% for item in categories %}
           {% set tab_name = item %}
