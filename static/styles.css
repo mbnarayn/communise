@@ -120,6 +120,15 @@ nav a {
   font-size: 0.75rem;
 }
 
+.hero-about-link {
+  color: var(--primary);
+  font: inherit;
+}
+
+.hero-about-link:hover {
+  color: var(--primary-dark);
+}
+
 .hero-tagline {
   margin: 0.6rem 0 0;
   color: var(--primary-dark);

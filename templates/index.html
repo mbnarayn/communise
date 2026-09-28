@@ -18,7 +18,6 @@
           <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
           <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
           <a href="{{ url_for('woking_page') }}">Woking</a>
-          <a href="{{ url_for('about') }}">About Us</a>
         </nav>
       </div>
     </header>
@@ -27,7 +26,7 @@
       <section class="hero">
         <div class="hero-copy">
           <h1>Supporting Local Communities Through Community Advertising</h1>
-          <p class="subtitle">Discover, share, and support local businesses and services, through your community's digital noticeboard.</p>
+          <p class="subtitle">Discover, share, and support local businesses and services, through your community's digital noticeboard.<br /><a class="hero-about-link" href="{{ url_for('about') }}">More about Communise</a></p>
           <div class="hero-actions">
             <form class="search-form hero-search" method="GET" action="{{ url_for('index') }}">
               <input
