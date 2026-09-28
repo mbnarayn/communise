@@ -129,6 +129,15 @@ nav a {
   color: var(--primary-dark);
 }
 
+.home-about-link {
+  color: #15803d;
+  font-weight: 800;
+}
+
+.home-about-link:hover {
+  color: #166534;
+}
+
 .hero-tagline {
   margin: 0.6rem 0 0;
   color: var(--primary-dark);
@@ -563,6 +572,56 @@ nav a {
   color: var(--muted);
   margin-top: 0;
   margin-bottom: 24px;
+}
+
+.about-card h1 {
+  font-size: 1rem;
+}
+
+.about-card h2 {
+  margin: 1rem 0 0.35rem;
+  color: var(--primary-dark);
+  font-size: 1rem;
+}
+
+.about-card h3 {
+  margin: 0 0 0.35rem;
+  color: var(--primary-dark);
+  font-size: 0.75rem;
+}
+
+.about-card p {
+  margin-bottom: 0.8rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.about-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.about-explore {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 0.65rem;
+  border-radius: 9px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.about-explore:hover {
+  background: var(--primary-dark);
 }
 
 .form-review-note {

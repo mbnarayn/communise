@@ -25,11 +25,17 @@
     <main class="container form-page">
       <article class="form-card about-card">
         <h1>About Communise</h1>
-        <p>Communise is a local directory that helps people discover the businesses, services, and community activities around them.</p>
-        <h2>Our purpose</h2>
-        <p>Our purpose is to make local connections easier. We give businesses and community organisations a simple place to share what they offer, while helping residents find and support the people and services in their area.</p>
-        <p>By bringing local listings together in one accessible place, Communise helps communities stay visible, connected, and informed.</p>
-        <a class="primary-btn" href="{{ url_for('index') }}">Explore Listings</a>
+        <p>Communise is a digital community noticeboard that helps people discover local businesses, services, events, and activities. Inspired by the noticeboards often found in supermarkets and community spaces, Communise brings local information together in one convenient place, making it easier to connect with and support local communities.</p>
+        <h2>Purpose</h2>
+        <p>Communise exists to strengthen local connections. It provides businesses, entrepreneurs, service providers, and community organisations with a simple platform to promote what they offer, while helping residents discover opportunities, services, and activities in their area.</p>
+        <h2>Why Communise</h2>
+        <h3>The Problem Communise Solves</h3>
+        <p>Communise provides a central place for local advertising and community information, eliminating the need to search through weeks or months of Facebook posts, WhatsApp messages, and social media feeds to find a service, event, recommendation, or opportunity that was previously shared.</p>
+        <p>By bringing local listings together in one searchable location, Communise makes local information easier to find, helping people discover and support the businesses, services, and community activities that matter most to them.</p>
+        <div class="about-actions">
+          <a class="about-explore" href="{{ url_for('index') }}">Explore Listings</a>
+          <a class="hero-cta" href="{{ url_for('add_listing') }}">Add Your Listing</a>
+        </div>
       </article>
     </main>
   </body>
