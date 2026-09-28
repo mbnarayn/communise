@@ -143,6 +143,7 @@
           <fieldset class="hours-editor">
             <legend>Opening hours</legend>
             <small>Leave a day blank if you are closed. Use the second time pair for split hours, such as a lunch break.</small>
+            <small class="hours-helper">Use the clock icon in each box to select a time.</small>
             {% if form and form.opening_hours is string and form.opening_hours %}
               <small>Current hours: {{ form.opening_hours }}. Add daily hours below to replace them.</small>
             {% endif %}
@@ -195,6 +196,14 @@
           phoneInput.value = digits.length > 5 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits;
         });
       }
+
+      document.querySelectorAll('input[type="time"]').forEach((timeInput) => {
+        timeInput.addEventListener('change', () => {
+          if (/^\d{2}:\d{2}$/.test(timeInput.value)) {
+            window.setTimeout(() => timeInput.blur(), 0);
+          }
+        });
+      });
     </script>
   </body>
 </html>
