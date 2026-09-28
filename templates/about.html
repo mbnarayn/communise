@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About Us | Communise</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container nav">
+        <a class="brand" href="{{ url_for('index') }}">
+          <img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" />
+        </a>
+        <nav>
+          <a href="{{ url_for('index') }}">Home</a>
+          <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
+          <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
+          <a href="{{ url_for('woking_page') }}">Woking</a>
+          <a href="{{ url_for('about') }}">About Us</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container form-page">
+      <article class="form-card about-card">
+        <h1>About Communise</h1>
+        <p>Communise is a local directory that helps people discover the businesses, services, and community activities around them.</p>
+        <h2>Our purpose</h2>
+        <p>Our purpose is to make local connections easier. We give businesses and community organisations a simple place to share what they offer, while helping residents find and support the people and services in their area.</p>
+        <p>By bringing local listings together in one accessible place, Communise helps communities stay visible, connected, and informed.</p>
+        <a class="primary-btn" href="{{ url_for('index') }}">Explore Listings</a>
+      </article>
+    </main>
+  </body>
+</html>

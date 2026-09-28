@@ -567,6 +567,11 @@ def index():
     )
 
 
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
+
 @app.route('/mk', endpoint='milton_keynes_page')
 @app.route('/miltonkeynes', endpoint='milton_keynes_page')
 @app.route('/woking', endpoint='woking_page')

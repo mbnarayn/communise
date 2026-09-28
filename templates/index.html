@@ -18,6 +18,7 @@
           <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
           <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
           <a href="{{ url_for('woking_page') }}">Woking</a>
+          <a href="{{ url_for('about') }}">About Us</a>
         </nav>
       </div>
     </header>
@@ -33,10 +34,13 @@
                 type="search"
                 name="q"
                 value="{{ query or '' }}"
-                placeholder="Search for a Listing"
+                placeholder="Search Listings"
                 aria-label="Search listings"
               />
               <button type="submit" class="secondary-btn">Search</button>
+              {% if query or category and category != 'All' %}
+                <a class="clear-search" href="{{ url_for('index', category=category) if category and category != 'All' else url_for('index') }}">Clear</a>
+              {% endif %}
             </form>
             <a class="hero-cta" href="{{ url_for('add_listing') }}">Add Your Listing</a>
           </div>
@@ -68,9 +72,12 @@
           {% if query and category and category != 'All' %}
             Showing "{{ query }}" in {{ category }}
           {% elif query %}
-            Showing results for "{{ query }}"
+            Showing Search Results For "{{ query }}"
           {% elif category and category != 'All' %}
-            Showing {{ category }} listings
+            Showing {{ category }} Listings
+          {% endif %}
+          {% if query %}
+            <a class="summary-clear" href="{{ url_for('index', category=category) if category and category != 'All' else url_for('index') }}">Clear Search</a>
           {% endif %}
         </p>
       {% endif %}
