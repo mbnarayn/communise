@@ -121,20 +121,12 @@ nav a {
 }
 
 .hero-about-link {
-  color: var(--primary);
-  font: inherit;
-}
-
-.hero-about-link:hover {
-  color: var(--primary-dark);
-}
-
-.home-about-link {
   color: #15803d;
+  font: inherit;
   font-weight: 800;
 }
 
-.home-about-link:hover {
+.hero-about-link:hover {
   color: #166534;
 }
 
@@ -666,6 +658,11 @@ nav a {
   margin-bottom: 0.8rem;
   font-size: 0.75rem;
   line-height: 1.45;
+}
+
+.about-contact a {
+  color: var(--primary);
+  font-weight: 700;
 }
 
 .about-actions {
