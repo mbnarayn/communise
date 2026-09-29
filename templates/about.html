@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About Communise</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container nav">
+        <a class="brand" href="{{ url_for('index') }}">
+          <img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" />
+        </a>
+        <nav>
+          <a href="{{ url_for('index') }}">Home</a>
+          <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
+          <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
+          <a href="{{ url_for('woking_page') }}">Woking</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container form-page">
+      <article class="form-card about-card">
+        <h1>About Communise</h1>
+        <p>Communise is a digital community noticeboard that helps people discover local businesses, services, events, and activities. Inspired by the noticeboards often found in supermarkets and community spaces, Communise brings local information together in one convenient place, making it easier to connect with and support local communities.</p>
+        <h2>Purpose</h2>
+        <p>Communise exists to strengthen local connections. It provides businesses, entrepreneurs, service providers, and community organisations with a simple platform to promote what they offer, while helping residents discover opportunities, services, and activities in their area.</p>
+        <h2>Why Communise</h2>
+        <h3>The Problem Communise Solves</h3>
+        <p>Communise provides a central place for local advertising and community information, eliminating the need to search through weeks or months of Facebook posts, WhatsApp messages, and social media feeds to find a service, event, recommendation, or opportunity that was previously shared.</p>
+        <p>By bringing local listings together in one searchable location, Communise makes local information easier to find, helping people discover and support the businesses, services, and community activities that matter most to them.</p>
+        <h2>Contact Us</h2>
+        <p class="about-contact">In case of any issues or if you require further information, please email <a href="mailto:communise.xyz@gmail.com">communise.xyz@gmail.com</a>.</p>
+        <div class="about-actions">
+          <a class="about-explore" href="{{ url_for('index') }}">Explore Listings</a>
+          <a class="hero-cta" href="{{ url_for('add_listing') }}">Add Your Listing</a>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>

@@ -15,15 +15,9 @@
         </a>
         <nav>
           <a href="{{ url_for('index') }}">Home</a>
-          {% for community in communities %}
-            {% if community.slug == 'miltonkeynes' %}
-              <a href="{{ url_for('milton_keynes_page') }}">{{ community.label }}</a>
-            {% elif community.slug == 'woking' %}
-              <a href="{{ url_for('woking_page') }}">{{ community.label }}</a>
-            {% elif community.slug == 'buckingham' %}
-              <a href="{{ url_for('buckingham_page') }}">{{ community.label }}</a>
-            {% endif %}
-          {% endfor %}
+          <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
+          <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
+          <a href="{{ url_for('woking_page') }}">Woking</a>
         </nav>
       </div>
     </header>
@@ -31,19 +25,21 @@
     <main class="container">
       <section class="hero">
         <div class="hero-copy">
-          <h1>Connecting Local Communities Through Community Advertising</h1>
-          <p class="subtitle">Discover, share, and support local businesses and services, through your community's digital noticeboard.</p>
-          <p class="hero-tagline">Connecting Communities, Supporting Local.</p>
+          <h1>Supporting Local Communities Through Community Advertising</h1>
+          <p class="subtitle">Discover, share, and support local businesses and services, through your community's digital noticeboard.<br /><a class="hero-about-link" href="{{ url_for('about') }}">More about Communise</a></p>
           <div class="hero-actions">
             <form class="search-form hero-search" method="GET" action="{{ url_for('index') }}">
               <input
                 type="search"
                 name="q"
                 value="{{ query or '' }}"
-                placeholder="Search for a Listing"
+                placeholder="Search Listings"
                 aria-label="Search listings"
               />
               <button type="submit" class="secondary-btn">Search</button>
+              {% if query or category and category != 'All' %}
+                <a class="clear-search" href="{{ url_for('index', category=category) if category and category != 'All' else url_for('index') }}">Clear</a>
+              {% endif %}
             </form>
             <a class="hero-cta" href="{{ url_for('add_listing') }}">Add Your Listing</a>
           </div>
@@ -52,17 +48,12 @@
 
       <nav class="community-tabs" aria-label="Community filters">
         <a href="{{ url_for('index', q=query, category=category) }}" class="tab {% if selected_community == 'all' %}active{% endif %}">All Areas</a>
-        {% for community in communities %}
-          {% if community.slug == 'miltonkeynes' %}
-            <a href="{{ url_for('milton_keynes_page', q=query, category=category) }}" class="tab {% if selected_community == 'mk' %}active{% endif %}">{{ community.label }}</a>
-          {% elif community.slug == 'woking' %}
-            <a href="{{ url_for('woking_page', q=query, category=category) }}" class="tab {% if selected_community == 'woking' %}active{% endif %}">{{ community.label }}</a>
-          {% elif community.slug == 'buckingham' %}
-            <a href="{{ url_for('buckingham_page', q=query, category=category) }}" class="tab {% if selected_community == 'buckingham' %}active{% endif %}">{{ community.label }}</a>
-          {% endif %}
-        {% endfor %}
+        <a href="{{ url_for('milton_keynes_page', q=query, category=category) }}" class="tab {% if selected_community == 'mk' %}active{% endif %}">Milton Keynes</a>
+        <a href="{{ url_for('buckingham_page', q=query, category=category) }}" class="tab {% if selected_community == 'buckingham' %}active{% endif %}">Buckingham</a>
+        <a href="{{ url_for('woking_page', q=query, category=category) }}" class="tab {% if selected_community == 'woking' %}active{% endif %}">Woking</a>
       </nav>
 
+      <p class="filter-row-label">Listing Categories</p>
       <nav class="category-tabs" aria-label="Category filters">
         {% for item in categories %}
           {% set tab_name = item %}
@@ -80,9 +71,12 @@
           {% if query and category and category != 'All' %}
             Showing "{{ query }}" in {{ category }}
           {% elif query %}
-            Showing results for "{{ query }}"
+            Showing Search Results For "{{ query }}"
           {% elif category and category != 'All' %}
-            Showing {{ category }} listings
+            Showing {{ category }} Listings
+          {% endif %}
+          {% if query %}
+            <a class="summary-clear" href="{{ url_for('index', category=category) if category and category != 'All' else url_for('index') }}">Clear Search</a>
           {% endif %}
         </p>
       {% endif %}
@@ -123,7 +117,7 @@
                   <li><strong>Address:</strong> {{ listing.address }}</li>
                 {% endif %}
                 {% if feature_flags.get('phone', True) and listing.phone %}
-                  <li><strong>Phone:</strong> {{ listing.phone }}</li>
+                  <li><strong>Phone:</strong> {{ listing.phone | phone_format }}</li>
                 {% endif %}
                 {% if feature_flags.get('website', True) and listing.website %}
                   <li>

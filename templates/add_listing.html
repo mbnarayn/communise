@@ -15,20 +15,23 @@
         </a>
         <nav>
           <a href="{{ url_for('index') }}">Home</a>
+          <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
+          <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
+          <a href="{{ url_for('woking_page') }}">Woking</a>
         </nav>
       </div>
     </header>
 
     <main class="container form-page">
-      <section class="form-card">
-        <h1>{% if editing and admin_mode %}Edit listing (Admin){% elif editing %}Edit listing{% else %}Add a local listing{% endif %}</h1>
+      <section class="form-card listing-form-card">
+        <h1>{% if editing and admin_mode %}Edit Listing (Admin){% elif editing %}Edit Listing{% else %}Add a Local Listing{% endif %}</h1>
         <p>{% if editing and admin_mode %}Update this listing directly.{% elif editing %}Update the listing details and submit them for review.{% else %}Share a shop, service, or amenity with the community.{% endif %}</p>
 
         {% if error %}
           <div class="error-banner">{{ error }}</div>
         {% endif %}
 
-        <form method="POST" action="{{ url_for('edit_listing', listing_id=listing.id, admin='1') if editing and admin_mode else url_for('edit_listing', listing_id=listing.id) if editing else url_for('add_listing') }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ url_for('edit_listing', listing_id=listing.id, admin='1') if editing and admin_mode else url_for('edit_listing', listing_id=listing.id) if editing else url_for('add_listing') }}" enctype="multipart/form-data" {% if not admin_mode %}onsubmit="return confirm('{% if editing %}Your changes will only be visible after a Communise Admin reviews and approves them. In case of any issues or delays, please email communise.xyz@gmail.com. Submit for review?{% else %}Your listing will only be visible after a Communise Admin reviews and approves it. In case of any issues or delays, please email communise.xyz@gmail.com. Submit listing?{% endif %}');"{% endif %}>
           <label>
             Community
             <select name="community">
@@ -109,7 +112,7 @@
 
           <label>
             Phone number
-            <input type="tel" name="phone_number" value="{{ (form.get('phone_number') or form.get('phone', '')) if form else '' }}" />
+            <input type="tel" name="phone_number" value="{{ ((form.get('phone_number') or form.get('phone', '')) if form else listing.phone if listing else '') | phone_format }}" placeholder="01234 567890" inputmode="numeric" pattern="[0-9]{5} ?[0-9]{6}" />
           </label>
 
           <label>
@@ -139,7 +142,7 @@
 
           <fieldset class="hours-editor">
             <legend>Opening hours</legend>
-            <small>Leave a day blank if you are closed. Use the second time pair for split hours, such as a lunch break.</small>
+            <small class="hours-helper">Leave a day blank if you are closed. Use the second time pair for split hours, such as a lunch break. Use the clock icon in each box to select a time.</small>
             {% if form and form.opening_hours is string and form.opening_hours %}
               <small>Current hours: {{ form.opening_hours }}. Add daily hours below to replace them.</small>
             {% endif %}
@@ -167,9 +170,39 @@
             <textarea name="deals" rows="3" placeholder="Add current offers or promotions">{{ form.deals if form and form.deals else '' }}</textarea>
           </label>
 
-          <button type="submit" class="primary-btn">{% if editing and admin_mode %}Save Changes{% elif editing %}Submit for Review{% else %}Save Listing{% endif %}</button>
+          {% if not admin_mode %}
+            <p class="form-review-note">
+              {% if editing %}
+                Your changes will only be visible after a Communise Admin reviews and approves them. In case of any issues or delays, please email communise.xyz@gmail.com.
+              {% else %}
+                Your listing will only be visible after a Communise Admin reviews and approves it. In case of any issues or delays, please email communise.xyz@gmail.com.
+              {% endif %}
+            </p>
+          {% endif %}
+
+          <button
+            type="submit"
+            class="primary-btn"
+          >{% if editing and admin_mode %}Save Changes{% elif editing %}Submit for Review{% else %}Save Listing{% endif %}</button>
         </form>
       </section>
     </main>
+    <script>
+      const phoneInput = document.querySelector('input[name="phone_number"]');
+      if (phoneInput) {
+        phoneInput.addEventListener('input', () => {
+          const digits = phoneInput.value.replace(/\D/g, '').slice(0, 11);
+          phoneInput.value = digits.length > 5 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits;
+        });
+      }
+
+      document.querySelectorAll('input[type="time"]').forEach((timeInput) => {
+        timeInput.addEventListener('change', () => {
+          if (/^\d{2}:\d{2}$/.test(timeInput.value)) {
+            window.setTimeout(() => timeInput.blur(), 0);
+          }
+        });
+      });
+    </script>
   </body>
 </html>

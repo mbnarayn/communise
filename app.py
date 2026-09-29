@@ -113,6 +113,24 @@ def external_url(value):
     return url
 
 
+def format_phone_number(value):
+    phone = str(value or '').strip()
+    digits = ''.join(character for character in phone if character.isdigit())
+    if len(digits) == 11:
+        return f'{digits[:5]} {digits[5:]}'
+    return phone
+
+
+app.add_template_filter(format_phone_number, 'phone_format')
+
+
+def phone_link(value):
+    return ''.join(character for character in str(value or '') if character.isdigit() or character == '+')
+
+
+app.add_template_filter(phone_link, 'phone_link')
+
+
 def get_community_label(community):
     if community in (None, '', 'all'):
         return 'Featured listings'
@@ -549,6 +567,11 @@ def index():
     )
 
 
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
+
 @app.route('/mk', endpoint='milton_keynes_page')
 @app.route('/miltonkeynes', endpoint='milton_keynes_page')
 @app.route('/woking', endpoint='woking_page')
@@ -604,7 +627,7 @@ def add_listing():
         category = request.form.get('category', '').strip()
         description = request.form.get('description', '').strip()
         address = request.form.get('address', '').strip()
-        phone = (request.form.get('phone_number') or request.form.get('phone') or '').strip()
+        phone = format_phone_number(request.form.get('phone_number') or request.form.get('phone') or '')
         website = request.form.get('website', '').strip()
         email = request.form.get('email', '').strip()
         instagram = request.form.get('instagram', '').strip()
@@ -730,7 +753,7 @@ def edit_listing(listing_id):
             'category': category,
             'description': request.form.get('description', '').strip() or 'A local spot to discover and support.',
             'address': address,
-            'phone': (request.form.get('phone_number') or request.form.get('phone') or '').strip(),
+            'phone': format_phone_number(request.form.get('phone_number') or request.form.get('phone') or ''),
             'website': request.form.get('website', '').strip(),
             'email': request.form.get('email', '').strip(),
             'instagram': request.form.get('instagram', '').strip(),

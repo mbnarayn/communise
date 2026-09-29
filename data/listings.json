@@ -1,82 +1,11 @@
 [
   {
-    "id": "9",
-    "name": "sdfdsf",
-    "category": "Shopping",
-    "description": "dfs",
-    "address": "adsfdsf",
-    "phone": "",
-    "website": "",
-    "email": "",
-    "instagram": "",
-    "facebook": "",
-    "whatsapp_group": "",
-    "community": "miltonkeynes",
-    "sub_community": "",
-    "opening_hours": "",
-    "additional_information": "",
-    "deals": "",
-    "logo_url": "",
-    "approved": true,
-    "pending_action": "",
-    "homepagefeatured": false,
-    "communitypagefeatured": false,
-    "usage_count": 0
-  },
-  {
-    "id": "8",
-    "name": "dfsD",
-    "category": "Food",
-    "description": "A local spot to discover and support.",
-    "address": "SDF",
-    "phone": "",
-    "website": "",
-    "email": "",
-    "instagram": "",
-    "facebook": "",
-    "whatsapp_group": "",
-    "community": "miltonkeynes",
-    "sub_community": "",
-    "opening_hours": {
-      "monday": [
-        {
-          "open": "01:07",
-          "close": "02:07"
-        }
-      ],
-      "tuesday": [],
-      "wednesday": [],
-      "thursday": [
-        {
-          "open": "18:00",
-          "close": "21:00"
-        },
-        {
-          "open": "22:00",
-          "close": "21:00"
-        }
-      ],
-      "friday": [],
-      "saturday": [],
-      "sunday": []
-    },
-    "additional_information": "",
-    "deals": "",
-    "logo_url": "",
-    "approved": true,
-    "pending_action": "",
-    "homepagefeatured": false,
-    "communitypagefeatured": false,
-    "usage_count": 0
-  },
-  {
     "id": "1",
     "name": "Maple Cafe",
     "category": "Food",
     "image": "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=160&q=80",
     "description": "Cozy neighborhood coffee shop with fresh pastries and free Wi-Fi.",
     "address": "15 Maple Street",
-    "phone": "555-0142",
     "website": "https://example.com/maplecafe",
     "email": "hello@maplecafe.example",
     "instagram": "@maplecafe",
@@ -89,7 +18,7 @@
     "deals": "Free refill on selected drinks this week.",
     "homepagefeatured": true,
     "communitypagefeatured": true,
-    "usage_count": 0,
+    "usage_count": 2,
     "approved": true
   },
   {
@@ -98,14 +27,22 @@
     "category": "Services",
     "description": "Local pharmacy offering prescriptions, wellness products, and advice.",
     "address": "8 Oak Lane",
-    "phone": "555-0189",
     "website": "https://example.com/oakpharmacy",
     "email": "care@oakpharmacy.example",
     "community": "miltonkeynes",
     "homepagefeatured": true,
     "communitypagefeatured": true,
-    "usage_count": 0,
-    "approved": true
+    "usage_count": 1,
+    "approved": true,
+    "pending_action": "",
+    "phone": "34321 234132",
+    "instagram": "",
+    "facebook": "",
+    "whatsapp_group": "",
+    "sub_community": "",
+    "opening_hours": "",
+    "additional_information": "",
+    "deals": ""
   },
   {
     "id": "3",
@@ -113,7 +50,6 @@
     "category": "Recreation",
     "description": "Gym and fitness studio with classes, lockers, and personal training.",
     "address": "44 River Road",
-    "phone": "555-0112",
     "website": "https://example.com/riverfitness",
     "community": "miltonkeynes",
     "homepagefeatured": true,
@@ -127,7 +63,6 @@
     "category": "Shopping",
     "description": "A busy local food and crafts market with weekly seasonal stalls.",
     "address": "27 High Street, Woking",
-    "phone": "555-0201",
     "website": "https://example.com/wokingmarket",
     "community": "woking",
     "homepagefeatured": true,
@@ -141,7 +76,6 @@
     "category": "Lifestyle",
     "description": "Community library, reading caf\u00e9, and free Wi-Fi for local residents.",
     "address": "10 Castle Street, Buckingham",
-    "phone": "555-0202",
     "website": "https://example.com/buckinghamlibrary",
     "community": "buckingham",
     "homepagefeatured": true,
@@ -155,7 +89,6 @@
     "category": "Shopping",
     "description": "A neighbourhood market with independent traders, snacks, and local produce.",
     "address": "21 The Grove, Milton Keynes",
-    "phone": "555-0303",
     "website": "https://example.com/thegrovecommunitymarket",
     "email": "hello@thegrovecommunitymarket.example",
     "instagram": "@thegrovecommunitymarket",
@@ -168,31 +101,7 @@
     "deals": "10% off selected stalls on market day.",
     "homepagefeatured": true,
     "communitypagefeatured": true,
-    "usage_count": 1,
+    "usage_count": 0,
     "approved": true
-  },
-  {
-    "id": "7",
-    "name": "Logo Upload Test Shop",
-    "category": "Shopping",
-    "description": "A listing with a local logo.",
-    "address": "12 Logo Lane",
-    "phone": "",
-    "website": "",
-    "email": "hello@logo-shop.example",
-    "instagram": "@logo_shop",
-    "facebook": "Logo Shop",
-    "whatsapp_group": "https://chat.whatsapp.com/logo-shop",
-    "community": "miltonkeynes",
-    "sub_community": "Town Centre",
-    "opening_hours": "Mon-Fri 9am-5pm",
-    "additional_information": "Accessible entrance.",
-    "deals": "10% off this week.",
-    "logo_url": "/static/uploads/logos/7/logo.png",
-    "approved": false,
-    "pending_action": "add",
-    "homepagefeatured": false,
-    "communitypagefeatured": false,
-    "usage_count": 0
   }
 ]
