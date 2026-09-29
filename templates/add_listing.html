@@ -132,7 +132,12 @@
 
           <label>
             Facebook
-            <input type="text" name="facebook" value="{{ form.facebook if form and form.facebook else '' }}" placeholder="Business name or page" />
+            <input type="text" name="facebook" value="{{ form.facebook if form and form.facebook else '' }}" placeholder="https://www.facebook.com/your-page" />
+          </label>
+
+          <label>
+            Google Business Profile
+            <input type="url" name="google_business_profile" value="{{ form.google_business_profile if form and form.google_business_profile else '' }}" placeholder="https://maps.app.goo.gl/..." />
           </label>
 
           <label>

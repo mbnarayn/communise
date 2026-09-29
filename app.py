@@ -632,6 +632,7 @@ def add_listing():
         email = request.form.get('email', '').strip()
         instagram = request.form.get('instagram', '').strip()
         facebook = request.form.get('facebook', '').strip()
+        google_business_profile = request.form.get('google_business_profile', '').strip()
         whatsapp_group = request.form.get('whatsapp_group') or request.form.get('whatsappgroup') or ''
         whatsapp_group = whatsapp_group.strip()
         community = normalize_community(request.form.get('community') or selected_community)
@@ -681,6 +682,7 @@ def add_listing():
             'email': email,
             'instagram': instagram,
             'facebook': facebook,
+            'google_business_profile': google_business_profile,
             'whatsapp_group': whatsapp_group,
             'community': community,
             'sub_community': sub_community,
@@ -758,6 +760,7 @@ def edit_listing(listing_id):
             'email': request.form.get('email', '').strip(),
             'instagram': request.form.get('instagram', '').strip(),
             'facebook': request.form.get('facebook', '').strip(),
+            'google_business_profile': request.form.get('google_business_profile', '').strip(),
             'whatsapp_group': (request.form.get('whatsapp_group') or request.form.get('whatsappgroup') or '').strip(),
             'community': community,
             'sub_community': request.form.get('sub_community', '').strip(),

@@ -81,7 +81,14 @@
           {% if listing.facebook %}
             <div class="detail-item">
               <strong>Facebook</strong>
-              <p>{{ listing.facebook }}</p>
+              <p><a href="{% if listing.facebook.startswith('http://') or listing.facebook.startswith('https://') %}{{ listing.facebook }}{% else %}https://www.facebook.com/search/top/?q={{ listing.facebook | urlencode }}{% endif %}" target="_blank" rel="noopener noreferrer">{{ listing.facebook }}</a></p>
+            </div>
+          {% endif %}
+
+          {% if listing.google_business_profile %}
+            <div class="detail-item">
+              <strong>Google Business Profile</strong>
+              <p><a href="{{ listing.google_business_profile | external_url }}" target="_blank" rel="noopener noreferrer">{{ listing.google_business_profile }}</a></p>
             </div>
           {% endif %}
 

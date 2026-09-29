@@ -313,6 +313,7 @@ class AppTests(unittest.TestCase):
             'email': 'hello@extendedshop.co.uk',
             'instagram': '@extendedshop',
             'facebook': 'Extended Shop',
+            'google_business_profile': 'https://maps.app.goo.gl/extended-shop',
             'whatsapp_group': 'https://chat.whatsapp.com/example',
             'community': 'woking',
             'sub_community': 'Town Centre',
@@ -329,11 +330,27 @@ class AppTests(unittest.TestCase):
         self.assertEqual(listing.get('email'), 'hello@extendedshop.co.uk')
         self.assertEqual(listing.get('instagram'), '@extendedshop')
         self.assertEqual(listing.get('facebook'), 'Extended Shop')
+        self.assertEqual(listing.get('google_business_profile'), 'https://maps.app.goo.gl/extended-shop')
         self.assertEqual(listing.get('whatsapp_group'), 'https://chat.whatsapp.com/example')
         self.assertEqual(listing.get('sub_community'), 'Town Centre')
         self.assertEqual(listing.get('opening_hours'), 'Mon-Sat 9am-5pm')
         self.assertEqual(listing.get('additional_information'), 'Family-owned local business')
         self.assertEqual(listing.get('deals'), '10% off this week')
+
+    def test_facebook_and_google_business_profile_are_linked(self):
+        self.client.post('/add', data={
+            'name': 'Link Test Shop',
+            'category': 'Shopping',
+            'address': '89 Market Road',
+            'facebook': 'Link Test Shop',
+            'google_business_profile': 'https://maps.app.goo.gl/link-test',
+        })
+
+        from app import load_listings
+        listing = next(item for item in load_listings() if item.get('name') == 'Link Test Shop')
+        detail_response = self.client.get(f"/listing/{listing['id']}")
+        self.assertIn(b'https://www.facebook.com/search/top/?q=Link%20Test%20Shop', detail_response.data)
+        self.assertIn(b'href="https://maps.app.goo.gl/link-test"', detail_response.data)
 
     def test_listing_detail_page_shows_full_information(self):
         listing_id = 6
@@ -363,6 +380,7 @@ class AppTests(unittest.TestCase):
             'description': 'Updated description.',
             'address': '99 New Maple Street',
             'phone_number': '555-0999',
+            'google_business_profile': 'https://maps.app.goo.gl/updated-maple',
         })
         self.assertEqual(response.status_code, 302)
 
@@ -373,6 +391,7 @@ class AppTests(unittest.TestCase):
         self.assertTrue(listing.get('approved'))
         self.assertEqual(listing.get('pending_action'), 'edit')
         self.assertEqual(listing['pending_changes'].get('name'), 'Updated Maple Cafe')
+        self.assertEqual(listing['pending_changes'].get('google_business_profile'), 'https://maps.app.goo.gl/updated-maple')
 
         public_response = self.client.get('/')
         self.assertIn(b'Maple Cafe', public_response.data)
