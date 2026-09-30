@@ -1,4 +1,5 @@
 import io
+import json
 import os
 from pathlib import Path
 import unittest
@@ -31,12 +32,121 @@ class AppTests(unittest.TestCase):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Communise', response.data)
+        self.assertIn(b'class="hero-about-link" href="/about">More About Communise</a>', response.data)
+        self.assertIn(b'class="install-communise-button" data-install-communise', response.data)
+        self.assertNotIn(b'data-install-communise hidden', response.data)
+        self.assertIn(b'/static/android-logo.svg', response.data)
+        self.assertIn(b'/static/apple-logo.svg', response.data)
+        self.assertIn(b'/static/windows-logo.svg', response.data)
+        self.assertNotIn(b'>Android<', response.data)
+        self.assertNotIn(b'>iPhone<', response.data)
+        self.assertIn(b'Add Communise to Home Screen', response.data)
+        self.assertLess(
+            response.data.index(b'Add Communise to Home Screen'),
+            response.data.index(b'class="install-device-pair"'),
+        )
+        self.assertLess(response.data.index(b'>Add Your Listing</a>'), response.data.index(b'data-install-communise'))
+        self.assertIn(b'<div class="hero-install-row">', response.data)
+
+    def test_pwa_metadata_and_icons_are_available(self):
+        page_paths = ('/', '/about', '/terms', '/add', '/listing/1', '/mk')
+        for path in page_paths:
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertIn(b'rel="manifest" href="/static/site.webmanifest"', response.data)
+                response.close()
+
+        manifest_response = self.client.get('/static/site.webmanifest')
+        self.assertEqual(manifest_response.status_code, 200)
+        self.assertIn(manifest_response.mimetype, ('application/manifest+json', 'application/json'))
+        manifest = json.loads(manifest_response.get_data(as_text=True))
+        self.assertEqual(manifest['name'], 'Communise')
+        self.assertEqual(manifest['display'], 'standalone')
+        manifest_response.close()
+        for icon in manifest['icons']:
+            icon_response = self.client.get(f"/static/{icon['src']}")
+            self.assertEqual(icon_response.status_code, 200)
+            self.assertTrue(icon_response.data.startswith(b'\x89PNG\r\n\x1a\n'))
+            icon_response.close()
+
+    def test_community_hero_about_link_uses_title_case(self):
+        response = self.client.get('/mk')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'class="hero-about-link" href="/about">More About Communise</a>', response.data)
+
+    def test_about_page_includes_purpose_sections_before_contact(self):
+        response = self.client.get('/about')
+        self.assertEqual(response.status_code, 200)
+        name_heading_index = response.data.index(b'<h3>The Name Communise</h3>')
+        name_paragraph_index = response.data.index(b'The name <strong>Communise</strong> combines the words <strong>Community</strong> and <strong>Advertise</strong>')
+        xyz_heading_index = response.data.index(b'<h3>Why the .xyz Domain</h3>')
+        purpose_index = response.data.index(b'<h2>Purpose</h2>')
+        why_index = response.data.index(b'<h2>Why Communise</h2>')
+        local_information_index = response.data.index(b'Communise makes local information easier to find')
+        problem_index = response.data.index(b'<h3>The Problem Communise Solves</h3>')
+        contact_index = response.data.index(b'<h2>Contact Us</h2>')
+        self.assertLess(name_heading_index, name_paragraph_index)
+        self.assertLess(name_paragraph_index, xyz_heading_index)
+        self.assertLess(xyz_heading_index, purpose_index)
+        self.assertLess(purpose_index, why_index)
+        self.assertLess(why_index, local_information_index)
+        self.assertLess(local_information_index, problem_index)
+        self.assertLess(why_index, contact_index)
+        self.assertIn(b'The Problem Communise Solves', response.data)
+        self.assertIn(b'the businesses and services that matter most to them.', response.data)
+        self.assertIn(b'href="/terms">Terms of Use</a>', response.data)
+        self.assertIn(b'approval or featuring is not an endorsement', response.data)
+
+    def test_terms_page_clarifies_third_party_listing_responsibility(self):
+        response = self.client.get('/terms')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'<h1>Terms of Use</h1>', response.data)
+        self.assertIn(b'Communise does not endorse or guarantee', response.data)
+        self.assertIn(b'Please verify details directly with the provider', response.data)
+        self.assertNotIn(b'approved, displayed, or featured', response.data)
+
+    def test_shared_footer_links_appear_on_site_pages(self):
+        for path in ('/', '/about', '/terms', '/add', '/listing/1', '/mk'):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(b'<a href="/about">More About Communise</a>', response.data)
+                self.assertIn(b'<a href="/terms">Terms of Use</a>', response.data)
+                self.assertIn(b'<a href="/add">Add Your Listing</a>', response.data)
+                self.assertIn(b'data-install-communise', response.data)
+
+        admin_response = self.client.get('/admin', headers={
+            'Authorization': 'Basic YWRtaW46Y2hhbmdlLW1l',
+        })
+        self.assertEqual(admin_response.status_code, 200)
+        self.assertIn(b'<a href="/about">More About Communise</a>', admin_response.data)
+        self.assertIn(b'<a href="/terms">Terms of Use</a>', admin_response.data)
+        self.assertIn(b'<a href="/add">Add Your Listing</a>', admin_response.data)
 
     def test_education_category_is_available_on_add_listing_form(self):
         response = self.client.get('/add')
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Education', response.data)
         self.assertIn(b'Tutors, Training Providers', response.data)
+
+    def test_community_dropdown_always_includes_supported_communities(self):
+        save_listings([{
+            'id': 1,
+            'name': 'Milton Keynes Listing',
+            'category': 'Shopping',
+            'community': 'miltonkeynes',
+            'approved': True,
+        }])
+
+        response = self.client.get('/add')
+        self.assertEqual(response.status_code, 200)
+        for slug, label in (
+            (b'value="miltonkeynes"', b'Milton Keynes'),
+            (b'value="buckingham"', b'Buckingham'),
+            (b'value="woking"', b'Woking'),
+        ):
+            self.assertIn(slug, response.data)
+            self.assertIn(label, response.data)
 
     def test_daily_opening_hours_are_stored_as_periods(self):
         self.client.post('/add', data={
@@ -90,11 +200,11 @@ class AppTests(unittest.TestCase):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertIn(
-            b'property="og:title" content="Supporting Local Communities Through Community Advertising"',
+            b'property="og:title" content="Communise - Connecting Local Communities"',
             response.data,
         )
         self.assertIn(
-            b'name="description" content="Discover, share, and support local businesses and services, through your community\'s digital noticeboard."',
+            b'name="description" content="Communise - Connecting Local Communities and Supporting Local Communities Through Community Advertising"',
             response.data,
         )
 
@@ -163,6 +273,36 @@ class AppTests(unittest.TestCase):
         self.assertEqual(oversized_description.status_code, 200)
         self.assertIn(b'Description must be 150 characters or fewer.', oversized_description.data)
 
+    def test_listing_name_only_allows_letters_and_spaces_up_to_40_characters(self):
+        valid_name = 'Café ' + ('A' * 35)
+        valid_response = self.client.post('/add', data={
+            'community': 'miltonkeynes',
+            'name': valid_name,
+            'category': 'Shopping',
+            'description': 'Valid name length.',
+        })
+        self.assertEqual(valid_response.status_code, 302)
+
+        for invalid_name in ('Shop 2!', 'A' * 41):
+            with self.subTest(name=invalid_name):
+                invalid_response = self.client.post('/add', data={
+                    'community': 'miltonkeynes',
+                    'name': invalid_name,
+                    'category': 'Shopping',
+                    'description': 'Invalid name.',
+                })
+                self.assertEqual(invalid_response.status_code, 200)
+                self.assertIn(b'Name must contain letters and spaces only and be 40 characters or fewer.', invalid_response.data)
+
+        edit_response = self.client.post('/listing/1/edit', data={
+            'community': 'miltonkeynes',
+            'name': 'Shop 2!',
+            'category': 'Food',
+            'description': 'Invalid edit name.',
+        })
+        self.assertEqual(edit_response.status_code, 200)
+        self.assertIn(b'Name must contain letters and spaces only and be 40 characters or fewer.', edit_response.data)
+
     def test_listing_form_orders_and_marks_fields(self):
         response = self.client.get('/add')
         self.assertEqual(response.status_code, 200)
@@ -175,6 +315,9 @@ class AppTests(unittest.TestCase):
             response.data.index(b'name="category"'),
         ]
         self.assertEqual(field_positions, sorted(field_positions))
+        self.assertIn(b'maxlength="40"', response.data)
+        self.assertIn(b'id="name-character-count" aria-live="polite">0 / 40 characters', response.data)
+        self.assertIn(b"nameInput.addEventListener('input', updateNameCharacterCount)", response.data)
         self.assertIn(b'maxlength="150"', response.data)
         self.assertIn(b'placeholder="https://share.google/..."', response.data)
         self.assertIn(b'placeholder="20 Bobbin Road, Whitehouse, Milton Keynes, MK8 1EP"', response.data)
@@ -210,6 +353,7 @@ class AppTests(unittest.TestCase):
 
         edit_response = self.client.get('/listing/1/edit')
         description_length = len(get_seed_data()[0]['description'])
+        self.assertIn(b'10 / 40 characters', edit_response.data)
         self.assertIn(f'{description_length} / 150 characters'.encode(), edit_response.data)
 
     def test_can_submit_listing(self):
@@ -389,7 +533,8 @@ class AppTests(unittest.TestCase):
         self.assertIn('usage_counter', home_features)
         self.assertIn('usage_counter', community_features)
         self.assertFalse(home_features.get('phone', True))
-        self.assertTrue(community_features.get('phone', False))
+        self.assertFalse(community_features.get('phone', True))
+        self.assertFalse(community_features.get('website', True))
 
     def test_home_and_community_visibility_use_independent_flags(self):
         save_listings([
@@ -441,6 +586,8 @@ class AppTests(unittest.TestCase):
                 'category': 'Shopping',
                 'description': 'Location display test.',
                 'address': '20 Bobbin Road',
+                'phone': '555-0100',
+                'website': 'https://example.com/tile-shop',
                 'community': 'miltonkeynes',
                 'sub_community': 'Whitehouse',
                 'approved': True,
@@ -470,12 +617,34 @@ class AppTests(unittest.TestCase):
         location_index = response.data.index(b'<div class="listing-location-tags">')
         description_index = response.data.index(b'<p>Location display test.</p>')
         self.assertGreater(location_index, description_index)
+        self.assertIn(b"/listing/tilelocationshop", response.data)
+        slug_detail_response = self.client.get('/listing/tilelocationshop')
+        self.assertEqual(slug_detail_response.status_code, 200)
+        self.assertIn(b'Tile Location Shop', slug_detail_response.data)
+        legacy_id_response = self.client.get('/listing/201')
+        self.assertEqual(legacy_id_response.status_code, 200)
         community_only_card = response.data.split(b'Community Only Tile Shop', 1)[1].split(b'</article>', 1)[0]
         self.assertNotIn(b'class="tag"></div>', community_only_card)
 
         community_response = self.client.get('/mk')
         self.assertIn(b'class="tag">Milton Keynes</div>', community_response.data)
         self.assertIn(b'class="tag">Whitehouse</div>', community_response.data)
+        community_location_card = next(
+            fragment.split(b'</article>', 1)[0]
+            for fragment in community_response.data.split(b'<article')
+            if b'<h3>Tile Location Shop</h3>' in fragment
+        )
+        self.assertNotIn(b'Phone:', community_location_card)
+        self.assertNotIn(b'Website:', community_location_card)
+
+    def test_duplicate_listing_slugs_include_listing_id(self):
+        from app import get_listing_slugs
+
+        slugs = get_listing_slugs([
+            {'id': '1', 'name': 'Coffee Shop'},
+            {'id': '2', 'name': 'CoffeeShop'},
+        ])
+        self.assertEqual(slugs, {'1': 'coffeeshop-1', '2': 'coffeeshop-2'})
 
     def test_add_listing_stores_extended_business_fields(self):
         response = self.client.post('/add', data={
@@ -581,7 +750,8 @@ class AppTests(unittest.TestCase):
     def test_listing_detail_page_shows_listing_image(self):
         response = self.client.get('/listing/1')
         self.assertEqual(response.status_code, 200)
-        self.assertLess(response.data.index(b'class="detail-content"'), response.data.index(b'class="detail-media"'))
+        self.assertIn(b'<div class="detail-layout">', response.data)
+        self.assertLess(response.data.index(b'class="detail-media"'), response.data.index(b'class="detail-content"'))
         self.assertIn(b'photo-1501339847302-ac426a4a7cbb', response.data)
 
     def test_listing_can_be_edited_and_returns_to_admin_review(self):

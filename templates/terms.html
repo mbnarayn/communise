@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {% include "_pwa_metadata.html" %}
+    <title>Terms of Use | Communise</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container nav">
+        <a class="brand" href="{{ url_for('index') }}">
+          <img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" />
+        </a>
+        <nav>
+          <a href="{{ url_for('index') }}">Home</a>
+          <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
+          <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
+          <a href="{{ url_for('woking_page') }}">Woking</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container form-page">
+      <article class="form-card about-card">
+        <h1>Terms of Use</h1>
+        <p>Listings are provided by third parties for general information. Communise does not endorse or guarantee the businesses, services, offers, or information listed. Please verify details directly with the provider before relying on a listing or making a purchase.</p>
+      </article>
+    </main>
+    {% include "_site_footer.html" %}
+  </body>
+</html>

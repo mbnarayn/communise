@@ -39,6 +39,127 @@ body {
   backdrop-filter: blur(8px);
 }
 
+.site-footer {
+  margin-top: 1rem;
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.site-footer-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+.site-footer-links a {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.site-footer-links a:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.install-communise-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 30px;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--primary-dark);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.install-communise-button[hidden] {
+  display: none;
+}
+
+.install-communise-button:hover {
+  border-color: var(--primary);
+  background: var(--accent);
+}
+
+.install-device-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+}
+
+.install-device {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.12rem;
+  color: var(--muted);
+  font-size: 0.48rem;
+  font-weight: 600;
+}
+
+.install-platform-logo {
+  display: block;
+  width: 17px;
+  height: 17px;
+  object-fit: contain;
+}
+
+.install-communise-label {
+  white-space: nowrap;
+}
+
+.hero-install-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.35rem;
+}
+
+.hero-install-row .install-communise-button {
+  min-width: min(100%, 260px);
+  min-height: 28px;
+}
+
+.install-guide {
+  width: min(390px, calc(100% - 2rem));
+  padding: 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.install-guide::backdrop {
+  background: rgba(20, 30, 42, 0.45);
+}
+
+.install-guide h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1rem;
+}
+
+.install-guide p {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.install-guide-actions {
+  display: flex;
+  justify-content: end;
+}
+
 .nav {
   display: flex;
   justify-content: space-between;
@@ -909,7 +1030,7 @@ select {
 
 .detail-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 22%);
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.8rem;
   align-items: start;
 }
@@ -955,11 +1076,11 @@ select {
 }
 
 .detail-media {
-  position: sticky;
-  top: 1.5rem;
-  width: min(100%, 220px);
-  justify-self: end;
-  padding: 0.75rem;
+  position: static;
+  width: min(100%, 180px);
+  justify-self: center;
+  margin: 0 auto;
+  padding: 0.5rem;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -1257,6 +1378,19 @@ select {
     min-width: 190px;
   }
 
+  .hero-install-row {
+    width: 100%;
+  }
+
+  .hero-install-row > .install-communise-button {
+    min-height: 36px;
+  }
+
+  .site-footer-links > .install-communise-button {
+    width: 100%;
+    max-width: 280px;
+  }
+
   .about-actions .about-explore {
     width: auto;
     min-width: 190px;
@@ -1276,9 +1410,9 @@ select {
 
   .detail-media {
     position: static;
-    order: -1;
-    width: min(100%, 220px);
-    justify-self: end;
+    width: 112px;
+    justify-self: center;
+    padding: 0.4rem;
   }
 
   .admin-item {

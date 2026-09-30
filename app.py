@@ -58,6 +58,7 @@ CATEGORY_OPTIONS = [
     "Other",
 ]
 LISTINGS_PER_PAGE = 16
+MAX_LISTING_NAME_LENGTH = 40
 DAYS_OF_WEEK = (
     "monday",
     "tuesday",
@@ -86,8 +87,8 @@ LISTING_FEATURES = {
         "description": True,
         "community": True,
         "sub_community": True,
-        "phone": True,
-        "website": True,
+        "phone": False,
+        "website": False,
         "usage_counter": True,
         "contact_button": True,
     },
@@ -105,6 +106,13 @@ def normalize_community(value):
     community = str(value or DEFAULT_COMMUNITY).strip().lower()
     community = community.replace(" ", "-")
     return COMMUNITY_ALIASES.get(community, community or DEFAULT_COMMUNITY)
+
+
+def is_valid_listing_name(value):
+    return (
+        len(value) <= MAX_LISTING_NAME_LENGTH
+        and all(character.isalpha() or character == ' ' for character in value)
+    )
 
 
 @app.template_filter('external_url')
@@ -183,14 +191,32 @@ def paginate_listings(listings, requested_page):
     return listings[start:start + LISTINGS_PER_PAGE], page, total_pages
 
 
+def normalize_listing_slug(value):
+    return ''.join(str(value or '').lower().split())
+
+
+def get_listing_slugs(listings):
+    base_slugs = {}
+    slug_counts = {}
+    for listing in listings:
+        listing_id = str(listing.get('id', ''))
+        base_slug = normalize_listing_slug(listing.get('name')) or f'listing{listing_id}'
+        base_slugs[listing_id] = base_slug
+        slug_counts[base_slug] = slug_counts.get(base_slug, 0) + 1
+
+    return {
+        listing_id: f'{base_slug}-{listing_id}' if slug_counts[base_slug] > 1 else base_slug
+        for listing_id, base_slug in base_slugs.items()
+    }
+
+
 def get_community_options(listings):
-    communities = {
+    communities = set(COMMUNITY_LABELS)
+    communities.update(
         normalize_community(item.get("community"))
         for item in listings
         if item.get("community")
-    }
-    if not communities:
-        communities = {DEFAULT_COMMUNITY}
+    )
 
     return [
         {"slug": community, "label": get_community_label(community)}
@@ -552,6 +578,7 @@ def index():
     )
     paginated, page, total_pages = paginate_listings(filtered, requested_page)
     communities = get_community_options(all_listings)
+    listing_slugs = get_listing_slugs(all_listings)
     return render_template(
         'index.html',
         listings=paginated,
@@ -559,6 +586,7 @@ def index():
         category=category,
         categories=get_categories(all_listings),
         communities=communities,
+        listing_slugs=listing_slugs,
         community_slug='all',
         community_label='Featured listings',
         selected_community='all',
@@ -572,6 +600,11 @@ def index():
 @app.route('/about')
 def about():
     return render_template('about.html')
+
+
+@app.route('/terms')
+def terms_of_use():
+    return render_template('terms.html')
 
 
 @app.route('/mk', endpoint='milton_keynes_page')
@@ -601,6 +634,7 @@ def community_page(community_slug=None):
     )
     paginated, page, total_pages = paginate_listings(filtered, requested_page)
     communities = get_community_options(all_listings)
+    listing_slugs = get_listing_slugs(all_listings)
     template_name = get_community_template(normalized)
     return render_template(
         template_name,
@@ -609,6 +643,7 @@ def community_page(community_slug=None):
         category=category,
         categories=get_categories(listings),
         communities=communities,
+        listing_slugs=listing_slugs,
         community_slug=get_community_slug(normalized),
         community_label=get_community_label(normalized),
         selected_community=get_community_slug(normalized),
@@ -653,6 +688,14 @@ def add_listing():
                 form=request.form,
                 communities=communities,
                 selected_community=community or selected_community,
+            )
+        if not is_valid_listing_name(name):
+            return render_template(
+                'add_listing.html',
+                error='Name must contain letters and spaces only and be 40 characters or fewer.',
+                form=request.form,
+                communities=communities,
+                selected_community=community,
             )
         if len(description) > 150:
             return render_template(
@@ -764,6 +807,16 @@ def edit_listing(listing_id):
                 communities=communities,
                 selected_community=community or selected_community,
             )
+        if not is_valid_listing_name(name):
+            return render_template(
+                'add_listing.html',
+                error='Name must contain letters and spaces only and be 40 characters or fewer.',
+                form=request.form,
+                listing=listing,
+                editing=True,
+                communities=communities,
+                selected_community=community,
+            )
         if len(description) > 150:
             return render_template(
                 'add_listing.html',
@@ -844,23 +897,28 @@ def request_listing_deletion(listing_id):
 
 @app.route('/listing/<listing_id>')
 def listing_detail(listing_id):
-    listing_id = str(listing_id)
+    requested_identifier = str(listing_id)
     listings = load_listings()
-    listing = None
-    viewed_listings = {str(item) for item in session.get('viewed_listings', [])}
-    for item in listings:
-        if str(item.get('id')) == listing_id:
-            listing = item
-            if listing_id not in viewed_listings:
-                item['usage_count'] = int(item.get('usage_count', 0) or 0) + 1
-                save_listings(listings)
-                viewed_listings.add(listing_id)
-                session['viewed_listings'] = list(viewed_listings)
-                session.modified = True
-            break
+    listing = next((item for item in listings if str(item.get('id')) == requested_identifier), None)
+    listing_slugs = get_listing_slugs(listings)
+    if listing is None:
+        requested_slug = normalize_listing_slug(requested_identifier)
+        listing = next(
+            (item for item in listings if listing_slugs.get(str(item.get('id'))) == requested_slug),
+            None,
+        )
 
     if listing is None:
-        return render_template('404.html', communities=get_community_options(load_listings())), 404
+        return render_template('404.html', communities=get_community_options(listings)), 404
+
+    listing_id = str(listing.get('id'))
+    viewed_listings = {str(item) for item in session.get('viewed_listings', [])}
+    if listing_id not in viewed_listings:
+        listing['usage_count'] = int(listing.get('usage_count', 0) or 0) + 1
+        save_listings(listings)
+        viewed_listings.add(listing_id)
+        session['viewed_listings'] = list(viewed_listings)
+        session.modified = True
 
     return render_template(
         'listing_detail.html',

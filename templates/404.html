@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {% include "_pwa_metadata.html" %}
     <title>Page not found | Communise</title>
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
@@ -29,5 +30,6 @@
         <a class="primary-btn" href="{{ url_for('index') }}">Return home</a>
       </section>
     </main>
+    {% include "_site_footer.html" %}
   </body>
 </html>

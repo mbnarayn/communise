@@ -3,15 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {% include "_pwa_metadata.html" %}
     <title>Communise</title>
-    <meta name="description" content="Discover, share, and support local businesses and services, through your community's digital noticeboard." />
+    <meta name="description" content="Communise - Connecting Local Communities and Supporting Local Communities Through Community Advertising" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Supporting Local Communities Through Community Advertising" />
-    <meta property="og:description" content="Discover, share, and support local businesses and services, through your community's digital noticeboard." />
+    <meta property="og:title" content="Communise - Connecting Local Communities" />
+    <meta property="og:description" content="Supporting Local Communities Through Community Advertising" />
     <meta property="og:url" content="{{ url_for('index', _external=True) }}" />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Supporting Local Communities Through Community Advertising" />
-    <meta name="twitter:description" content="Discover, share, and support local businesses and services, through your community's digital noticeboard." />
+    <meta name="twitter:title" content="Communise - Connecting Local Communities" />
+    <meta name="twitter:description" content="Supporting Local Communities Through Community Advertising" />
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
   </head>
@@ -34,7 +35,7 @@
       <section class="hero">
         <div class="hero-copy">
           <h1>Supporting Local Communities Through Community Advertising</h1>
-          <p class="subtitle">Discover, share, and support local businesses and services, through your community's digital noticeboard.<br /><a class="hero-about-link" href="{{ url_for('about') }}">More about Communise</a></p>
+          <p class="subtitle">Discover, share, and support local businesses and services, through your community's digital noticeboard.<br /><a class="hero-about-link" href="{{ url_for('about') }}">More About Communise</a></p>
           <div class="hero-actions">
             <form class="search-form hero-search" method="GET" action="{{ url_for('index') }}">
               <input
@@ -50,6 +51,9 @@
               {% endif %}
             </form>
             <a class="hero-cta" href="{{ url_for('add_listing') }}">Add Your Listing</a>
+          </div>
+          <div class="hero-install-row">
+            {% include "_install_button.html" %}
           </div>
         </div>
       </section>
@@ -98,7 +102,7 @@
               role="link"
               tabindex="0"
               aria-label="View details for {{ listing.name }}"
-              onclick="window.location.href='{{ url_for('listing_detail', listing_id=listing.id) }}';"
+              onclick="window.location.href='{{ url_for('listing_detail', listing_id=listing_slugs.get(listing.id, listing.id)) }}';"
               onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"
             >
               <div class="listing-card-meta">
@@ -169,5 +173,6 @@
         <p class="empty-state">No listings yet. Be the first to add one.</p>
       {% endif %}
     </main>
+    {% include "_site_footer.html" %}
   </body>
 </html>

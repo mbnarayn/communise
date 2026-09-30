@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {% include "_pwa_metadata.html" %}
     <title>{% if editing %}Edit Listing{% else %}Add Listing{% endif %}</title>
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
@@ -27,8 +28,6 @@
       <section class="form-card listing-form-card">
         <h1>{% if editing and admin_mode %}Edit Listing (Admin){% elif editing %}Edit Listing{% else %}Add a Local Listing{% endif %}</h1>
         <p>{% if editing and admin_mode %}Update this listing directly.{% elif editing %}Update the listing details and submit them for review.{% else %}Share a shop, service, or amenity with the community.{% endif %}</p>
-        <p class="field-key"><span class="field-marker required">Required</span> Complete these fields. <span class="field-marker optional">Optional</span> These fields can be left blank.</p>
-
         {% if error %}
           <div class="error-banner">{{ error }}</div>
         {% endif %}
@@ -47,7 +46,8 @@
 
           <label>
             <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-name"></use></svg>Name <span class="field-marker required">Required</span></span>
-            <input type="text" name="name" value="{{ form.name if form and form.name else '' }}" required />
+            <input type="text" name="name" value="{{ form.name if form and form.name else '' }}" maxlength="40" required />
+            <small id="name-character-count" aria-live="polite">{{ form.name|length if form and form.name else 0 }} / 40 characters</small>
           </label>
 
           <label>
@@ -205,6 +205,27 @@
       </section>
     </main>
     <script>
+      const nameInput = document.querySelector('input[name="name"]');
+      const nameCharacterCount = document.getElementById('name-character-count');
+      if (nameInput && nameCharacterCount) {
+        const normalizeName = (value) => Array.from(value)
+          .filter((character) => /\p{L}/u.test(character) || character === ' ')
+          .slice(0, 40)
+          .join('');
+        const updateNameCharacterCount = () => {
+          const cursorPosition = nameInput.selectionStart ?? nameInput.value.length;
+          const normalizedValue = normalizeName(nameInput.value);
+          if (normalizedValue !== nameInput.value) {
+            const normalizedBeforeCursor = normalizeName(nameInput.value.slice(0, cursorPosition));
+            nameInput.value = normalizedValue;
+            nameInput.setSelectionRange(normalizedBeforeCursor.length, normalizedBeforeCursor.length);
+          }
+          nameCharacterCount.textContent = `${Array.from(nameInput.value).length} / 40 characters`;
+        };
+        nameInput.addEventListener('input', updateNameCharacterCount);
+        updateNameCharacterCount();
+      }
+
       const descriptionInput = document.querySelector('textarea[name="description"]');
       const descriptionCharacterCount = document.getElementById('description-character-count');
       if (descriptionInput && descriptionCharacterCount) {
@@ -231,5 +252,6 @@
         });
       });
     </script>
+    {% include "_site_footer.html" %}
   </body>
 </html>

@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {% include "_pwa_metadata.html" %}
     <title>{{ listing.name }} | Communise</title>
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
@@ -26,6 +27,12 @@
     <main class="container detail-page">
       <section class="detail-card">
         <div class="detail-layout">
+          {% if listing.logo_url or listing.image %}
+            <aside class="detail-media">
+              <img class="detail-logo" src="{{ listing.logo_url or listing.image }}" alt="{{ listing.name }} logo" />
+            </aside>
+          {% endif %}
+
           <div class="detail-content">
             <div class="detail-header">
               <div class="detail-heading">
@@ -164,13 +171,9 @@
 
           </div>
 
-          {% if listing.logo_url or listing.image %}
-            <aside class="detail-media">
-              <img class="detail-logo" src="{{ listing.logo_url or listing.image }}" alt="{{ listing.name }} logo" />
-            </aside>
-          {% endif %}
         </div>
       </section>
     </main>
+    {% include "_site_footer.html" %}
   </body>
 </html>
