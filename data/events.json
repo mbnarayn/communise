@@ -1,0 +1,21 @@
+[
+  {
+    "id": "f6ca4054-5378-486c-bacd-f79beda7d200",
+    "name": "test",
+    "description": "test",
+    "community": "woking",
+    "schedule": [
+      {
+        "date": "2026-10-07",
+        "start_time": "01:40",
+        "end_time": "16:40"
+      }
+    ],
+    "venue": "webber",
+    "details_url": "https://examlepl.co.uk/test",
+    "approved": true,
+    "usage_count": 1,
+    "going_count": 0,
+    "not_going_count": 0
+  }
+]

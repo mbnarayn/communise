@@ -1,0 +1,13 @@
+<div class="event-attendance" role="group" aria-label="Attendance for {{ event.name }}">
+  {% for choice, label in [('going', 'Going'), ('not_going', 'Not Going')] %}
+    <form method="POST" action="{{ url_for('event_attendance', event_id=event.id) }}">
+      <input type="hidden" name="attendance" value="{{ choice }}" />
+      <input type="hidden" name="source" value="{{ attendance_source }}" />
+      {% if attendance_source == 'tile' %}
+        <input type="hidden" name="community" value="{{ selected_community }}" />
+        <input type="hidden" name="q" value="{{ query }}" />
+      {% endif %}
+      <button type="submit" class="usage-badge event-attendance-choice event-attendance-{{ choice }}" aria-pressed="{{ 'true' if session.get('event_attendance', {}).get(event.id) == choice else 'false' }}">{{ label }} {{ event[choice ~ '_count'] | default(0) }}</button>
+    </form>
+  {% endfor %}
+</div>

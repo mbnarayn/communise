@@ -15,11 +15,14 @@
         <a class="brand" href="{{ url_for('index') }}">
           <img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" />
         </a>
-        <nav>
-          <a href="{{ url_for('index') }}">Home</a>
-          <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
-          <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
-          <a href="{{ url_for('woking_page') }}">Woking</a>
+        <nav class="site-navigation">
+          <span class="site-nav-links">
+            <a href="{{ url_for('index') }}">Home</a>
+            <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
+            <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
+            <a href="{{ url_for('woking_page') }}">Woking</a>
+          </span>
+          <a class="events-nav-link" href="{{ url_for('events_page') }}">Upcoming Events</a>
         </nav>
       </div>
     </header>
@@ -27,11 +30,13 @@
     <main class="container detail-page">
       <section class="detail-card">
         <div class="detail-layout">
-          {% if listing.logo_url or listing.image %}
-            <aside class="detail-media">
+          <aside class="detail-media">
+            {% if listing.logo_url or listing.image %}
               <img class="detail-logo" src="{{ listing.logo_url or listing.image }}" alt="{{ listing.name }} logo" />
-            </aside>
-          {% endif %}
+            {% else %}
+              <div class="detail-logo listing-logo-fallback" style="--listing-fallback-color: {{ listing.id | listing_fallback_color }}" aria-hidden="true">{{ listing.name | listing_initials }}</div>
+            {% endif %}
+          </aside>
 
           <div class="detail-content">
             <div class="detail-header">

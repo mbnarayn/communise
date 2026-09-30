@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {% include "_pwa_metadata.html" %}
+    <title>{% if editing %}Edit Event{% else %}Add an Event{% endif %} | Communise</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    {% include "_field_icon_symbols.html" %}
+    <header class="topbar">
+      <div class="container nav">
+        <a class="brand" href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" /></a>
+        <nav class="site-navigation">
+          <span class="site-nav-links">
+            <a href="{{ url_for('index') }}">Home</a>
+            <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
+            <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
+            <a href="{{ url_for('woking_page') }}">Woking</a>
+          </span>
+          <a class="events-nav-link" href="{{ url_for('events_page') }}">Upcoming Events</a>
+        </nav>
+      </div>
+    </header>
+    <main class="container form-page">
+      <section class="form-card listing-form-card event-form">
+        <h1><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-hours"></use></svg>{% if editing %}Edit Event{% else %}Add an Event{% endif %}</span></h1>
+        <p>{% if editing %}Changes appear after an admin approves them. The current event remains visible until then.{% else %}Events appear after an admin approves them.{% endif %}</p>
+        {% if error %}<p class="error-banner" role="alert">{{ error }}</p>{% endif %}
+        <form method="POST" action="{{ url_for('edit_event', event_id=event.id) if editing else url_for('add_event') }}">
+          <label><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-name"></use></svg>Event Name <span class="field-marker required">Required</span></span>
+            <input type="text" name="name" value="{{ form.get('name', '') }}" required />
+          </label>
+          <label><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-description"></use></svg>Description <span class="field-marker required">Required</span></span>
+            <textarea name="description" rows="4" required>{{ form.get('description', '') }}</textarea>
+          </label>
+          <label><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-community"></use></svg>Community <span class="field-marker required">Required</span></span>
+            <select name="community" required>
+              <option value="">Choose a community</option>
+              {% for community in communities %}
+                <option value="{{ community.slug }}" {% if form.get('community') == community.slug %}selected{% endif %}>{{ community.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <div class="event-schedule-group">
+            <h2 id="event-schedule-title" class="event-schedule-heading"><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-calendar"></use></svg>Date and Time <span class="field-marker required">Required</span></span></h2>
+            <fieldset class="event-schedule" aria-labelledby="event-schedule-title">
+            <div data-event-dates>
+              {% for occurrence in schedule_rows %}
+                <div class="event-date-row">
+                  <label><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-calendar"></use></svg>Date</span>
+                    <input type="date" name="date[]" value="{{ occurrence.date }}" min="{{ now_date }}" required />
+                  </label>
+                  <label><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-hours"></use></svg>Start Time</span>
+                    <input type="time" name="start_time[]" value="{{ occurrence.start_time }}" required />
+                  </label>
+                  <label><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-hours"></use></svg>End Time</span>
+                    <input type="time" name="end_time[]" value="{{ occurrence.end_time }}" required />
+                  </label>
+                  {% if not loop.first %}<button type="button" class="event-remove-date" data-remove-date>Remove</button>{% endif %}
+                </div>
+              {% endfor %}
+            </div>
+            <div class="event-schedule-actions">
+              <strong>Event happening over multiple days?</strong>
+              <button type="button" class="secondary-btn event-add-date" data-add-event-date>Add Another Date</button>
+            </div>
+            </fieldset>
+          </div>
+          <label><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-address"></use></svg>Address / Venue <span class="field-marker required">Required</span></span>
+            <input type="text" name="venue" value="{{ form.get('venue', '') }}" placeholder="Where is it happening?" required />
+          </label>
+          <label><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-website"></use></svg>Event Details or Tickets Link <span class="field-marker optional">Optional</span></span>
+            <input type="url" name="details_url" value="{{ form.get('details_url', '') }}" placeholder="https://example.com/event" />
+            <small>Link to event information, registration, or tickets.</small>
+          </label>
+          <button type="submit" class="primary-btn">{% if editing %}Submit Changes for Review{% else %}Submit Event{% endif %}</button>
+        </form>
+        <template id="event-date-template">
+          <div class="event-date-row">
+            <label><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-calendar"></use></svg>Date</span>
+              <input type="date" name="date[]" min="{{ now_date }}" required />
+            </label>
+            <label><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-hours"></use></svg>Start Time</span>
+              <input type="time" name="start_time[]" required />
+            </label>
+            <label><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-hours"></use></svg>End Time</span>
+              <input type="time" name="end_time[]" required />
+            </label>
+            <button type="button" class="event-remove-date" data-remove-date>Remove</button>
+          </div>
+        </template>
+      </section>
+    </main>
+    <script>
+      const eventDates = document.querySelector('[data-event-dates]');
+      document.querySelector('[data-add-event-date]').addEventListener('click', () => {
+        eventDates.append(document.getElementById('event-date-template').content.cloneNode(true));
+      });
+      eventDates.addEventListener('click', (event) => {
+        if (event.target.matches('[data-remove-date]')) {
+          event.target.closest('.event-date-row').remove();
+        }
+      });
+    </script>
+    {% include "_site_footer.html" %}
+  </body>
+</html>

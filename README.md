@@ -79,6 +79,35 @@ python app.py
 
 The app will automatically use Cosmos DB instead of the JSON file when those values are present.
 
+## Upcoming events
+
+Visitors can browse upcoming events at `/events`, search by event name, description, venue,
+community or date, filter by community, and submit an event at `/events/add`. Clear removes
+the search text while keeping the selected community.
+Event community choices include Milton Keynes, Buckingham, Woking, and Other.
+Submissions are visible only after an admin approves them under `/admin` (Review Events).
+Visitors can request edits or deletion from an approved event's detail page. The current
+event stays published unchanged until an admin approves the request; rejecting it keeps
+the current event. Admins can also request removal of published events for review.
+Event tiles list the nearest dates first in UK format with their times, event name,
+description, community, View Details link and a view count. Opening event details counts
+once per browser session for that event, even when it has multiple dates. The detail page shows the venue, all
+upcoming dates and any registration or ticket link.
+Going and Not Going buttons appear on event tiles and details. Each browser session can
+record one response per event and can switch its response; all dates for that event share
+the same counts.
+Events have a name, description, community, required Address / Venue, and one or more dates,
+each with its own start and end time. An optional event details, registration, or tickets URL
+can link visitors to more information. Past dates are not shown publicly, even
+when other dates for the same event are upcoming. Locally, events are saved separately
+from listings in `data/events.json`.
+
+When Cosmos DB is configured, events use a separate container (default `events`) in the same
+database, partitioned by `/community`. The app creates the container if it does not exist. To
+use another container name, set `COSMOS_EVENTS_CONTAINER` before running the app. If creating
+the container manually, its partition key must be `/community`. The configured Cosmos account
+key must have permission to create the container and read/write events.
+
 ## Deploy to Azure App Service
 
 1. Create a Linux Web App using Python 3.14:

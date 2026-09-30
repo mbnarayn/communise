@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {% include "_pwa_metadata.html" %}
+    <title>Upcoming Events | Communise</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    {% include "_field_icon_symbols.html" %}
+    <header class="topbar">
+      <div class="container nav">
+        <a class="brand" href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" /></a>
+        <nav class="site-navigation">
+          <span class="site-nav-links">
+            <a href="{{ url_for('index') }}">Home</a>
+            <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
+            <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
+            <a href="{{ url_for('woking_page') }}">Woking</a>
+          </span>
+          <a class="events-nav-link" href="{{ url_for('events_page') }}" aria-current="page">Upcoming Events</a>
+        </nav>
+      </div>
+    </header>
+    <main class="container events-page">
+      <div class="event-add-action">
+        <a class="hero-cta" href="{{ url_for('add_event') }}">Add an Event</a>
+      </div>
+      {% if request.args.get('submitted') %}
+        <p class="event-notice" role="status">Your event has been submitted for admin review.</p>
+      {% endif %}
+      <form class="search-form hero-search events-search" method="GET" action="{{ url_for('events_page') }}">
+        {% if selected_community != 'all' %}<input type="hidden" name="community" value="{{ selected_community }}" />{% endif %}
+        <input type="search" name="q" value="{{ query }}" placeholder="Search Events" aria-label="Search events" />
+        <button type="submit" class="secondary-btn">Search</button>
+        {% if query %}
+          <a class="clear-search" href="{{ url_for('events_page', community=selected_community) if selected_community != 'all' else url_for('events_page') }}">Clear</a>
+        {% endif %}
+      </form>
+      <nav class="community-tabs" aria-label="Filter events by location">
+        <a class="tab {% if selected_community == 'all' %}active{% endif %}" href="{{ url_for('events_page', q=query) if query else url_for('events_page') }}">All Areas</a>
+        {% for community in communities %}
+          <a class="tab {% if selected_community == community.slug %}active{% endif %}" href="{{ url_for('events_page', community=community.slug, q=query) if query else url_for('events_page', community=community.slug) }}">{{ community.label }}</a>
+        {% endfor %}
+      </nav>
+      <div class="events-heading">
+        <h1><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-hours"></use></svg>Upcoming Events by Date</span></h1>
+      </div>
+      {% if events %}
+        <section class="listing-grid events-grid" id="events-list" aria-label="Upcoming events in date order">
+          {% for event in events %}
+            <article class="card event-card">
+              <div class="listing-card-title"><h3>{{ event.name }}</h3></div>
+              <p>{{ event.description }}</p>
+              <p class="event-card-when"><time datetime="{{ event.date }}">{{ event.date | uk_date }}</time> <span>{{ event.start_time }}{% if event.end_time %} - {{ event.end_time }}{% endif %}</span></p>
+              <div class="listing-location-tags">
+                <span class="tag">{{ communities | selectattr('slug', 'equalto', event.community) | map(attribute='label') | first | default(event.community, true) }}</span>
+              </div>
+              <div class="card-actions event-card-actions">
+                <a class="details-cta" href="{{ url_for('event_detail', event_id=event_slugs[event.id | string]) }}">View details <span aria-hidden="true">&#8594;</span></a>
+                {% set attendance_source = 'tile' %}
+                {% include '_event_attendance.html' %}
+                <span class="usage-badge">Viewed {{ event.usage_count | default(0) }} {% if event.usage_count | default(0) == 1 %}time{% else %}times{% endif %}</span>
+              </div>
+            </article>
+          {% endfor %}
+        </section>
+      {% else %}
+        <p class="empty-state">{% if query %}No upcoming events match your search.{% else %}No upcoming events in this area yet.{% endif %}</p>
+      {% endif %}
+    </main>
+    {% include "_site_footer.html" %}
+  </body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {% include "_pwa_metadata.html" %}
+    <title>{{ event.name }} | Communise Events</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    {% include "_field_icon_symbols.html" %}
+    <header class="topbar">
+      <div class="container nav">
+        <a class="brand" href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" /></a>
+        <nav class="site-navigation">
+          <span class="site-nav-links">
+            <a href="{{ url_for('index') }}">Home</a>
+            <a href="{{ url_for('milton_keynes_page') }}">Milton Keynes</a>
+            <a href="{{ url_for('buckingham_page') }}">Buckingham</a>
+            <a href="{{ url_for('woking_page') }}">Woking</a>
+          </span>
+          <a class="events-nav-link" href="{{ url_for('events_page') }}">Upcoming Events</a>
+        </nav>
+      </div>
+    </header>
+    <main class="container detail-page">
+      <section class="detail-card">
+        <div class="detail-layout">
+          <div class="detail-content">
+            <div class="detail-header">
+              <div class="detail-heading">
+                <div class="detail-meta">
+                  <p class="eyebrow"><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-community"></use></svg>{{ community_label }}</span></p>
+                </div>
+                <h1><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-name"></use></svg>{{ event.name }}</span></h1>
+              </div>
+            </div>
+            <p class="detail-description"><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-description"></use></svg>{{ event.description }}</span></p>
+            <div class="detail-grid">
+              {% if event.venue %}
+                <div class="detail-item">
+                  <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-address"></use></svg>Address / Venue</span></strong>
+                  <p>{{ event.venue }}</p>
+                </div>
+              {% endif %}
+              {% if event.details_url %}
+                <div class="detail-item">
+                  <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-website"></use></svg>Event Link</span></strong>
+                  <p><a href="{{ event.details_url }}" target="_blank" rel="noopener noreferrer">{{ event.details_url }}</a></p>
+                </div>
+              {% endif %}
+              <div class="detail-item event-detail-dates">
+                <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-calendar"></use></svg>Date and Time</span></strong>
+                <div class="hours-display">
+                  {% for occurrence in schedule %}
+                    <div class="hours-display-row">
+                      <span><time datetime="{{ occurrence.date }}">{{ occurrence.date | uk_date }}</time></span>
+                      <span>{{ occurrence.start_time }}{% if occurrence.end_time %} - {{ occurrence.end_time }}{% endif %}</span>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+            {% set attendance_source = 'detail' %}
+            {% include '_event_attendance.html' %}
+            <div class="detail-actions">
+              <a class="primary-btn" href="{{ url_for('events_page') }}">Back to Events</a>
+              <div class="listing-management-actions">
+                {% if event.pending_action %}
+                  <span class="review-note">This event has a change awaiting admin review.</span>
+                {% else %}
+                  <a class="edit-listing-button" href="{{ url_for('edit_event', event_id=event.id) }}">Edit Event</a>
+                  <form method="POST" action="{{ url_for('request_event_deletion', event_id=event.id) }}" onsubmit="return confirm('Submit this event for deletion review?');">
+                    <button type="submit" class="delete-listing-button">Delete Event</button>
+                  </form>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+    {% include "_site_footer.html" %}
+  </body>
+</html>

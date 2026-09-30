@@ -1,8 +1,10 @@
 <footer class="site-footer">
   <nav class="container site-footer-links" aria-label="Footer links">
+    <a href="{{ url_for('events_page') }}">Upcoming Events</a>
     <a href="{{ url_for('about') }}">More About Communise</a>
     <a href="{{ url_for('terms_of_use') }}">Terms of Use</a>
     <a href="{{ url_for('add_listing') }}">Add Your Listing</a>
+    <a href="{{ url_for('add_event') }}">Add an Event</a>
   </nav>
   <div class="container site-footer-install">
     {% include "_install_button.html" %}

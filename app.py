@@ -2,8 +2,10 @@ import hashlib
 import json
 import os
 import random
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from urllib.parse import urlsplit
+from uuid import uuid4
 
 from functools import wraps
 
@@ -43,6 +45,7 @@ COMMUNITY_LABELS = {
     "woking": "Woking",
     "buckingham": "Buckingham",
 }
+EVENT_COMMUNITY_LABELS = {**COMMUNITY_LABELS, "other": "Other"}
 COMMUNITY_TEMPLATES = {
     "miltonkeynes": "community.html",
     "woking": "community.html",
@@ -96,6 +99,7 @@ LISTING_FEATURES = {
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 DATA_FILE = os.path.join(DATA_DIR, "listings.json")
+EVENT_DATA_FILE = os.path.join(DATA_DIR, "events.json")
 LOCAL_LOGO_DIR = Path(os.path.dirname(__file__)) / "static" / "uploads" / "logos"
 ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 ALLOWED_LOGO_TYPES = {"image/png", "image/jpeg", "image/webp"}
@@ -121,6 +125,30 @@ def external_url(value):
     if url and not url.startswith(('http://', 'https://')):
         return f'https://{url}'
     return url
+
+
+@app.template_filter('listing_initials')
+def listing_initials(value):
+    words = [
+        ''.join(character for character in word if character.isalnum())
+        for word in str(value or '').split()
+    ]
+    return ''.join(word[0].upper() for word in words if word)[:2] or '?'
+
+
+@app.template_filter('listing_fallback_color')
+def listing_fallback_color(value):
+    colors = ('#9b3c36', '#286650', '#355b85', '#874b65', '#7a4b15', '#684b8a')
+    digest = hashlib.sha256(str(value or '').encode('utf-8')).digest()
+    return colors[int.from_bytes(digest[:4], 'big') % len(colors)]
+
+
+@app.template_filter('uk_date')
+def uk_date(value):
+    try:
+        return date.fromisoformat(str(value)).strftime('%d/%m/%Y')
+    except ValueError:
+        return str(value)
 
 
 def format_phone_number(value):
@@ -222,6 +250,10 @@ def get_community_options(listings):
         {"slug": community, "label": get_community_label(community)}
         for community in sorted(communities, key=lambda item: (item != DEFAULT_COMMUNITY, item))
     ]
+
+
+def get_event_community_options():
+    return get_community_options([]) + [{"slug": "other", "label": EVENT_COMMUNITY_LABELS["other"]}]
 
 
 def requires_auth(view_func):
@@ -386,6 +418,69 @@ def get_cosmos_container():
         partition_key=PartitionKey(path="/category"),
     )
     return container
+
+
+def get_events_container():
+    if not is_cosmos_configured():
+        return None
+
+    if CosmosClient is None or PartitionKey is None:
+        raise RuntimeError("azure-cosmos is required when Cosmos DB is configured.")
+
+    client = CosmosClient(os.getenv("COSMOS_ENDPOINT"), credential=os.getenv("COSMOS_KEY"))
+    database = client.get_database_client(os.getenv("COSMOS_DATABASE"))
+    return database.create_container_if_not_exists(
+        id=os.getenv("COSMOS_EVENTS_CONTAINER", "events"),
+        partition_key=PartitionKey(path="/community"),
+    )
+
+
+def load_events(community=None):
+    if is_cosmos_configured():
+        if community:
+            return list(get_events_container().query_items(
+                query="SELECT * FROM c WHERE c.community = @community",
+                parameters=[{'name': '@community', 'value': community}],
+                partition_key=community,
+            ))
+        return list(get_events_container().query_items(
+            query="SELECT * FROM c", enable_cross_partition_query=True,
+        ))
+    if not os.path.exists(EVENT_DATA_FILE):
+        return []
+    with open(EVENT_DATA_FILE, "r", encoding="utf-8") as file:
+        events = json.load(file)
+    return [event for event in events if event.get('community') == community] if community else events
+
+
+def save_event(event):
+    if is_cosmos_configured():
+        get_events_container().upsert_item(event)
+        return
+    events = load_events()
+    events.append(event)
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(EVENT_DATA_FILE, "w", encoding="utf-8") as file:
+        json.dump(events, file, indent=2)
+
+
+def update_event(event):
+    if is_cosmos_configured():
+        get_events_container().upsert_item(event)
+        return
+    events = load_events()
+    events = [event if str(item['id']) == str(event['id']) else item for item in events]
+    with open(EVENT_DATA_FILE, "w", encoding="utf-8") as file:
+        json.dump(events, file, indent=2)
+
+
+def delete_event(event):
+    if is_cosmos_configured():
+        get_events_container().delete_item(item=event['id'], partition_key=event['community'])
+        return
+    remaining_events = [item for item in load_events() if str(item['id']) != str(event['id'])]
+    with open(EVENT_DATA_FILE, "w", encoding="utf-8") as file:
+        json.dump(remaining_events, file, indent=2)
 
 
 def ensure_data_file():
@@ -605,6 +700,250 @@ def about():
 @app.route('/terms')
 def terms_of_use():
     return render_template('terms.html')
+
+
+@app.route('/events')
+def events_page():
+    community = request.args.get('community', 'all')
+    query = request.args.get('q', '').strip()
+    if community != 'all' and community not in EVENT_COMMUNITY_LABELS:
+        return render_template('404.html'), 404
+    upcoming = [
+        {**event, **occurrence}
+        for event in load_events(community if community != 'all' else None)
+        if event.get('approved')
+        for occurrence in get_event_schedule(event)
+        if occurrence['date'] >= date.today().isoformat()
+    ]
+    if query:
+        needle = query.casefold()
+        upcoming = [
+            event for event in upcoming
+            if any(needle in str(event.get(field, '')).casefold() for field in ('name', 'description', 'venue'))
+            or needle in EVENT_COMMUNITY_LABELS.get(event['community'], event['community']).casefold()
+            or needle in event['date'] or needle in uk_date(event['date'])
+        ]
+    upcoming.sort(key=lambda event: (event['date'], event['start_time'], event['name']))
+    return render_template(
+        'events.html', events=upcoming, selected_community=community,
+        communities=get_event_community_options(), query=query,
+        event_slugs=get_event_slugs(load_events()),
+    )
+
+
+def get_event_schedule(event):
+    if 'schedule' in event:
+        return event['schedule']
+    if event.get('date'):
+        return [{'date': event['date'], 'start_time': event.get('time', ''), 'end_time': ''}]
+    return []
+
+
+def get_event_slugs(events):
+    base_slugs = {}
+    slug_counts = {}
+    for event in events:
+        event_id = str(event.get('id', ''))
+        base_slug = normalize_listing_slug(event.get('name')) or f'event{event_id}'
+        base_slugs[event_id] = base_slug
+        slug_counts[base_slug] = slug_counts.get(base_slug, 0) + 1
+
+    return {
+        event_id: f'{base_slug}-{event_id}' if slug_counts[base_slug] > 1 else base_slug
+        for event_id, base_slug in base_slugs.items()
+    }
+
+
+def format_event_review_value(field, value):
+    if field == 'schedule':
+        return ', '.join(
+            f"{uk_date(occurrence['date'])}: {occurrence['start_time']} - {occurrence['end_time']}"
+            for occurrence in (value or [])
+        ) or 'Not set'
+    return value or 'Not set'
+
+
+@app.route('/events/<event_id>')
+def event_detail(event_id):
+    events = load_events()
+    requested_identifier = str(event_id)
+    event = next(
+        (item for item in events if str(item.get('id')) == requested_identifier and item.get('approved')),
+        None,
+    )
+    if event is None:
+        event_slugs = get_event_slugs(events)
+        event = next(
+            (item for item in events if event_slugs.get(str(item.get('id'))) == requested_identifier and item.get('approved')),
+            None,
+        )
+    if event is None:
+        return render_template('404.html'), 404
+    schedule = sorted(
+        (occurrence for occurrence in get_event_schedule(event) if occurrence['date'] >= date.today().isoformat()),
+        key=lambda occurrence: (occurrence['date'], occurrence['start_time']),
+    )
+    if not schedule:
+        return render_template('404.html'), 404
+    viewed_events = {str(item) for item in session.get('viewed_events', [])}
+    event_id = str(event['id'])
+    if event_id not in viewed_events:
+        event['usage_count'] = int(event.get('usage_count', 0) or 0) + 1
+        update_event(event)
+        viewed_events.add(event_id)
+        session['viewed_events'] = list(viewed_events)
+        session.modified = True
+    return render_template(
+        'event_detail.html', event=event, schedule=schedule,
+        community_label=EVENT_COMMUNITY_LABELS.get(event['community'], event['community']),
+    )
+
+
+@app.route('/events/<event_id>/attendance', methods=['POST'])
+def event_attendance(event_id):
+    event = next(
+        (item for item in load_events() if str(item['id']) == event_id and item.get('approved')),
+        None,
+    )
+    if event is None or not any(
+        occurrence['date'] >= date.today().isoformat() for occurrence in get_event_schedule(event)
+    ):
+        return render_template('404.html'), 404
+
+    choice = request.form.get('attendance')
+    if choice not in ('going', 'not_going'):
+        return Response('Invalid attendance choice.', status=400)
+
+    choices = dict(session.get('event_attendance', {}))
+    previous = choices.get(event_id)
+    if previous != choice:
+        if previous in ('going', 'not_going'):
+            previous_field = f'{previous}_count'
+            event[previous_field] = max(0, int(event.get(previous_field, 0) or 0) - 1)
+        field = f'{choice}_count'
+        event[field] = int(event.get(field, 0) or 0) + 1
+        update_event(event)
+        choices[event_id] = choice
+        session['event_attendance'] = choices
+        session.modified = True
+
+    if request.form.get('source') == 'detail':
+        return redirect(url_for('event_detail', event_id=event_id))
+    community = request.form.get('community', 'all')
+    if community not in EVENT_COMMUNITY_LABELS:
+        community = 'all'
+    query = request.form.get('q', '').strip()
+    return redirect(url_for('events_page', community=community, q=query))
+
+
+def parse_event_form(form):
+    dates = form.getlist('date[]')
+    start_times = form.getlist('start_time[]')
+    end_times = form.getlist('end_time[]')
+    schedule_rows = [
+        {'date': event_date.strip(), 'start_time': start.strip(), 'end_time': end.strip()}
+        for event_date, start, end in zip(dates, start_times, end_times)
+    ]
+    values = {
+        'name': form.get('name', '').strip(),
+        'description': form.get('description', '').strip(),
+        'community': form.get('community', '').strip(),
+        'schedule': schedule_rows,
+        'venue': form.get('venue', '').strip(),
+        'details_url': form.get('details_url', '').strip(),
+    }
+    valid_schedule = bool(dates) and len(dates) == len(start_times) == len(end_times)
+    for occurrence in schedule_rows:
+        try:
+            event_day = date.fromisoformat(occurrence['date'])
+            starts = datetime.strptime(occurrence['start_time'], '%H:%M')
+            ends = datetime.strptime(occurrence['end_time'], '%H:%M')
+            valid_schedule &= (
+                event_day >= date.today()
+                and starts.strftime('%H:%M') == occurrence['start_time']
+                and ends.strftime('%H:%M') == occurrence['end_time']
+                and ends > starts
+            )
+        except ValueError:
+            valid_schedule = False
+    if not values['name'] or not values['description'] or values['community'] not in EVENT_COMMUNITY_LABELS or not values['venue'] or not valid_schedule:
+        return values, 'Provide an event name, description, community, address or venue, and future dates with end times after start times.'
+    if values['details_url']:
+        try:
+            parsed_url = urlsplit(values['details_url'])
+            valid_url = parsed_url.scheme in ('http', 'https') and bool(parsed_url.hostname)
+        except ValueError:
+            valid_url = False
+        if not valid_url:
+            return values, 'Enter a valid http:// or https:// event link.'
+    return values, None
+
+
+@app.route('/events/add', methods=['GET', 'POST'])
+def add_event():
+    communities = get_event_community_options()
+    if request.method == 'POST':
+        values, error = parse_event_form(request.form)
+        if error:
+            return render_template(
+                'add_event.html', communities=communities, form=request.form,
+                schedule_rows=values['schedule'] or [{'date': '', 'start_time': '', 'end_time': ''}],
+                error=error, now_date=date.today().isoformat(),
+            ), 400
+
+        save_event({
+            'id': str(uuid4()), **values, 'approved': False,
+            'usage_count': 0, 'going_count': 0, 'not_going_count': 0,
+        })
+        return redirect(url_for('events_page', submitted='1'))
+
+    return render_template(
+        'add_event.html', communities=communities, form={}, now_date=date.today().isoformat(),
+        schedule_rows=[{'date': '', 'start_time': '', 'end_time': ''}],
+    )
+
+
+@app.route('/events/<event_id>/edit', methods=['GET', 'POST'])
+def edit_event(event_id):
+    event = next((item for item in load_events() if str(item['id']) == event_id and item.get('approved')), None)
+    if event is None or not any(
+        occurrence['date'] >= date.today().isoformat() for occurrence in get_event_schedule(event)
+    ):
+        return render_template('404.html'), 404
+    if event.get('pending_action'):
+        return Response('This event already has a change awaiting admin review.', status=409)
+
+    communities = get_event_community_options()
+    if request.method == 'POST':
+        values, error = parse_event_form(request.form)
+        if error:
+            return render_template(
+                'add_event.html', communities=communities, form=request.form,
+                schedule_rows=values['schedule'] or [{'date': '', 'start_time': '', 'end_time': ''}],
+                error=error, now_date=date.today().isoformat(), editing=True, event=event,
+            ), 400
+        event['pending_changes'] = values
+        event['pending_action'] = 'edit'
+        update_event(event)
+        return redirect(url_for('event_detail', event_id=event_id))
+
+    return render_template(
+        'add_event.html', communities=communities, form=event,
+        schedule_rows=get_event_schedule(event), now_date=date.today().isoformat(),
+        editing=True, event=event,
+    )
+
+
+@app.route('/events/<event_id>/delete', methods=['POST'])
+def request_event_deletion(event_id):
+    event = next((item for item in load_events() if str(item['id']) == event_id and item.get('approved')), None)
+    if event is None:
+        return render_template('404.html'), 404
+    if event.get('pending_action'):
+        return Response('This event already has a change awaiting admin review.', status=409)
+    event['pending_action'] = 'delete'
+    update_event(event)
+    return redirect(url_for('events_page'))
 
 
 @app.route('/mk', endpoint='milton_keynes_page')
@@ -991,7 +1330,83 @@ def admin():
             'listings': pending,
         },
     ]
-    return render_template('admin.html', admin_sections=admin_sections, query=query)
+    events = load_events()
+    event_field_labels = {
+        'name': 'Name', 'description': 'Description', 'community': 'Community',
+        'schedule': 'Date and Time', 'venue': 'Address / Venue', 'details_url': 'Event Link',
+    }
+    pending_events = []
+    for event in events:
+        if not event.get('approved') or event.get('pending_action'):
+            review_event = dict(event)
+            review_event['review_action'] = event.get('pending_action') or 'add'
+            if review_event['review_action'] == 'edit':
+                changes = event.get('pending_changes') or {}
+                review_event['pending_diff'] = [
+                    {
+                        'label': event_field_labels[field],
+                        'before': format_event_review_value(
+                            field, get_event_schedule(event) if field == 'schedule' else event.get(field)
+                        ),
+                        'after': format_event_review_value(field, value),
+                    }
+                    for field, value in changes.items() if value != event.get(field)
+                ]
+                review_event.update(changes)
+            pending_events.append(review_event)
+    pending_events.sort(
+        key=lambda event: min((occurrence['date'], occurrence['start_time']) for occurrence in get_event_schedule(event))
+    )
+    published_events = sorted(
+        (event for event in events if event.get('approved') and get_event_schedule(event)),
+        key=lambda event: min((occurrence['date'], occurrence['start_time']) for occurrence in get_event_schedule(event)),
+    )
+    return render_template(
+        'admin.html', admin_sections=admin_sections, query=query,
+        pending_events=pending_events, published_events=published_events,
+        get_event_schedule=get_event_schedule,
+    )
+
+
+@app.route('/admin/events/<event_id>/approve', methods=['POST'])
+@requires_auth
+def approve_event(event_id):
+    event = next((item for item in load_events() if item['id'] == event_id), None)
+    if event is not None:
+        action = event.get('pending_action')
+        if action == 'delete':
+            delete_event(event)
+        elif action == 'edit':
+            updated = {**event, **event.get('pending_changes', {})}
+            updated.pop('pending_changes', None)
+            updated.pop('pending_action', None)
+            if is_cosmos_configured() and updated['community'] != event['community']:
+                update_event(updated)
+                delete_event(event)
+            else:
+                update_event(updated)
+        elif not event.get('approved'):
+            event['approved'] = True
+            update_event(event)
+        else:
+            return Response('No pending event change to approve.', status=409)
+    return redirect(url_for('admin'))
+
+
+@app.route('/admin/events/<event_id>/reject', methods=['POST'])
+@requires_auth
+def reject_event(event_id):
+    event = next((item for item in load_events() if item['id'] == event_id), None)
+    if event is not None:
+        if not event.get('approved'):
+            delete_event(event)
+        elif event.get('pending_action') in ('edit', 'delete'):
+            event.pop('pending_changes', None)
+            event.pop('pending_action', None)
+            update_event(event)
+        else:
+            return Response('No pending event change to reject.', status=409)
+    return redirect(url_for('admin'))
 
 
 @app.route('/admin/listing/<listing_id>/delete', methods=['POST'])

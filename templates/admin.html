@@ -14,8 +14,9 @@
         <a class="brand" href="{{ url_for('index') }}">
           <img src="{{ url_for('static', filename='communise_logo.png') }}" alt="Communise logo" />
         </a>
-        <nav>
+        <nav class="admin-home-nav">
           <a href="{{ url_for('index') }}">Home</a>
+          <a class="events-nav-link" href="{{ url_for('events_page') }}">Upcoming Events</a>
         </nav>
       </div>
     </header>
@@ -28,7 +29,7 @@
             <p>{{ section.description }}</p>
             {% if section.kind == 'existing' %}
               <form class="search-form admin-search" method="GET" action="{{ url_for('admin') }}">
-                <input type="search" name="q" value="{{ query or '' }}" placeholder="Search all listings" aria-label="Search all listings" />
+                <input class="admin-search-input" type="search" name="q" value="{{ query or '' }}" placeholder="Search all listings" aria-label="Search all listings" />
                 <button type="submit" class="secondary-btn">Search</button>
               </form>
             {% endif %}
@@ -109,11 +110,13 @@
                   {% endif %}
                 </div>
 
-                {% if listing.logo_url or listing.image %}
-                  <aside class="detail-media">
+                <aside class="detail-media">
+                  {% if listing.logo_url or listing.image %}
                     <img class="detail-logo" src="{{ listing.logo_url or listing.image }}" alt="{{ listing.name }} logo" />
-                  </aside>
-                {% endif %}
+                  {% else %}
+                    <div class="detail-logo listing-logo-fallback" style="--listing-fallback-color: {{ listing.id | listing_fallback_color }}" aria-hidden="true">{{ listing.name | listing_initials }}</div>
+                  {% endif %}
+                </aside>
               </div>
 
               <div class="detail-actions admin-actions">
@@ -143,6 +146,62 @@
             {% endif %}
           </section>
         {% endfor %}
+        <section class="admin-section" id="event-review">
+          <h1>Review Events</h1>
+          {% if pending_events %}
+            {% for event in pending_events %}
+              <article class="admin-item event-review-item">
+                <div class="review-action review-action-{{ event.review_action }}">{{ event.review_action|capitalize }} Event</div>
+                {% if event.review_action in ('edit', 'delete') %}
+                  <p class="review-note">The current approved event remains visible until this request is reviewed.</p>
+                {% endif %}
+                {% if event.review_action == 'edit' and event.pending_diff %}
+                  <section class="change-summary" aria-label="Changes in this event edit">
+                    <h3>Changes in this edit</h3>
+                    {% for change in event.pending_diff %}
+                      <div class="change-row">
+                        <strong>{{ change.label }}</strong>
+                        <div class="change-values"><span><b>Before:</b> {{ change.before }}</span><span><b>After:</b> {{ change.after }}</span></div>
+                      </div>
+                    {% endfor %}
+                  </section>
+                {% endif %}
+                <h2>Name: {{ event.name }}</h2>
+                <p><strong>Community:</strong> {{ event.community }}</p>
+                {% for occurrence in get_event_schedule(event) %}
+                  <p><strong>Date and Time:</strong> <time datetime="{{ occurrence.date }}">{{ occurrence.date | uk_date }}</time> {{ occurrence.start_time }}{% if occurrence.end_time %} - {{ occurrence.end_time }}{% endif %}</p>
+                {% endfor %}
+                {% if event.venue %}<p><strong>Address / Venue:</strong> {{ event.venue }}</p>{% endif %}
+                <p><strong>Description:</strong> {{ event.description }}</p>
+                {% if event.details_url %}<p><strong>Event Link:</strong> <a href="{{ event.details_url }}" target="_blank" rel="noopener noreferrer">{{ event.details_url }}</a></p>{% endif %}
+                <div class="admin-actions">
+                  <form method="POST" action="{{ url_for('approve_event', event_id=event.id) }}"><button type="submit" class="primary-btn small-btn">Approve Event</button></form>
+                  <form method="POST" action="{{ url_for('reject_event', event_id=event.id) }}"><button type="submit" class="danger-btn small-btn">Reject Event</button></form>
+                </div>
+              </article>
+            {% endfor %}
+          {% else %}
+            <p>No events awaiting approval.</p>
+          {% endif %}
+          {% if published_events %}
+            <h2>Published Events</h2>
+            {% for event in published_events %}
+              <article class="admin-item event-review-item">
+                <h3>Name: {{ event.name }}</h3>
+                <p><strong>Community:</strong> {{ event.community }}</p>
+                {% for occurrence in get_event_schedule(event) %}
+                  <p><strong>Date and Time:</strong> <time datetime="{{ occurrence.date }}">{{ occurrence.date | uk_date }}</time> {{ occurrence.start_time }}{% if occurrence.end_time %} - {{ occurrence.end_time }}{% endif %}</p>
+                {% endfor %}
+                {% if event.venue %}<p><strong>Address / Venue:</strong> {{ event.venue }}</p>{% endif %}
+                <p><strong>Description:</strong> {{ event.description }}</p>
+                {% if event.details_url %}<p><strong>Event Link:</strong> <a href="{{ event.details_url }}" target="_blank" rel="noopener noreferrer">{{ event.details_url }}</a></p>{% endif %}
+                {% if not event.pending_action %}
+                  <form method="POST" action="{{ url_for('request_event_deletion', event_id=event.id) }}" onsubmit="return confirm('Submit this event for deletion review?');"><button type="submit" class="delete-listing-button">Delete Event</button></form>
+                {% endif %}
+              </article>
+            {% endfor %}
+          {% endif %}
+        </section>
       </section>
     </main>
     {% include "_site_footer.html" %}

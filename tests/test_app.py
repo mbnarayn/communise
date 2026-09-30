@@ -2,6 +2,8 @@ import io
 import json
 import os
 from pathlib import Path
+from datetime import date, timedelta
+from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
@@ -32,6 +34,9 @@ class AppTests(unittest.TestCase):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Communise', response.data)
+        self.assertIn(b'<nav class="site-navigation">', response.data)
+        self.assertIn(b'class="events-nav-link" href="/events">Upcoming Events</a>', response.data)
+        self.assertLess(response.data.index(b'>Woking</a>'), response.data.index(b'class="events-nav-link"'))
         self.assertIn(b'class="hero-about-link" href="/about">More About Communise</a>', response.data)
         self.assertIn(b'class="install-communise-button" data-install-communise', response.data)
         self.assertNotIn(b'data-install-communise hidden', response.data)
@@ -47,6 +52,20 @@ class AppTests(unittest.TestCase):
         )
         self.assertLess(response.data.index(b'>Add Your Listing</a>'), response.data.index(b'data-install-communise'))
         self.assertIn(b'<div class="hero-install-row">', response.data)
+
+    def test_upcoming_events_button_follows_community_links_on_public_pages(self):
+        for path in ('/', '/mk', '/events', '/events/add', '/add', '/listing/1', '/about', '/terms'):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                header = response.data.split(b'</header>', 1)[0]
+                self.assertIn(b'<span class="site-nav-links">', header)
+                self.assertLess(header.index(b'>Woking</a>'), header.index(b'</span>'))
+                self.assertLess(header.index(b'</span>'), header.index(b'class="events-nav-link"'))
+                self.assertIn(b'>Upcoming Events</a>', header)
+
+        admin = self.client.get('/admin', headers={'Authorization': 'Basic YWRtaW46Y2hhbmdlLW1l'})
+        self.assertIn(b'class="events-nav-link" href="/events">Upcoming Events</a>', admin.data)
 
     def test_pwa_metadata_and_icons_are_available(self):
         page_paths = ('/', '/about', '/terms', '/add', '/listing/1', '/mk')
@@ -113,6 +132,7 @@ class AppTests(unittest.TestCase):
                 self.assertIn(b'<a href="/about">More About Communise</a>', response.data)
                 self.assertIn(b'<a href="/terms">Terms of Use</a>', response.data)
                 self.assertIn(b'<a href="/add">Add Your Listing</a>', response.data)
+                self.assertIn(b'<a href="/events/add">Add an Event</a>', response.data)
                 self.assertIn(b'data-install-communise', response.data)
                 self.assertIn(b'<div class="container site-footer-install">', response.data)
                 footer_html = response.data.split(b'<footer class="site-footer">', 1)[1]
@@ -125,9 +145,12 @@ class AppTests(unittest.TestCase):
             'Authorization': 'Basic YWRtaW46Y2hhbmdlLW1l',
         })
         self.assertEqual(admin_response.status_code, 200)
+        self.assertIn(b'<nav class="admin-home-nav">', admin_response.data)
+        self.assertIn(b'class="admin-search-input"', admin_response.data)
         self.assertIn(b'<a href="/about">More About Communise</a>', admin_response.data)
         self.assertIn(b'<a href="/terms">Terms of Use</a>', admin_response.data)
         self.assertIn(b'<a href="/add">Add Your Listing</a>', admin_response.data)
+        self.assertIn(b'<a href="/events/add">Add an Event</a>', admin_response.data)
 
     def test_education_category_is_available_on_add_listing_form(self):
         response = self.client.get('/add')
@@ -652,6 +675,15 @@ class AppTests(unittest.TestCase):
         ])
         self.assertEqual(slugs, {'1': 'coffeeshop-1', '2': 'coffeeshop-2'})
 
+    def test_duplicate_event_slugs_include_event_id(self):
+        from app import get_event_slugs
+
+        slugs = get_event_slugs([
+            {'id': '1', 'name': 'Community Fair'},
+            {'id': '2', 'name': 'communityfair'},
+        ])
+        self.assertEqual(slugs, {'1': 'communityfair-1', '2': 'communityfair-2'})
+
     def test_add_listing_stores_extended_business_fields(self):
         response = self.client.post('/add', data={
             'name': 'Extended Profile Shop',
@@ -752,6 +784,21 @@ class AppTests(unittest.TestCase):
             b'field-icon-hours', b'field-icon-details', b'field-icon-offers',
         ):
             self.assertIn(icon, response.data)
+
+    def test_logo_fallback_uses_first_two_initials_and_stable_color(self):
+        from app import listing_fallback_color, listing_initials
+
+        self.assertEqual(listing_initials('The Happy Little Bakery'), 'TH')
+        color = listing_fallback_color('listing-6')
+        self.assertEqual(color, listing_fallback_color('listing-6'))
+        self.assertRegex(color, r'^#[0-9a-f]{6}$')
+
+        card = self.client.get('/')
+        self.assertIn(b'class="listing-thumb listing-logo-fallback"', card.data)
+        self.assertIn(b'>TG</div>', card.data)
+        detail = self.client.get('/listing/6')
+        self.assertIn(b'class="detail-logo listing-logo-fallback"', detail.data)
+        self.assertIn(b'>TG</div>', detail.data)
 
     def test_listing_detail_page_shows_listing_image(self):
         response = self.client.get('/listing/1')
@@ -867,6 +914,484 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Oak Pharmacy', response.data)
         self.assertNotIn(b'Maple Cafe', response.data)
+
+
+class EventTests(unittest.TestCase):
+    def setUp(self):
+        temporary_directory = TemporaryDirectory()
+        self.addCleanup(temporary_directory.cleanup)
+        event_file = str(Path(temporary_directory.name) / 'events.json')
+        event_file_patch = patch('app.EVENT_DATA_FILE', event_file)
+        event_file_patch.start()
+        self.addCleanup(event_file_patch.stop)
+        self.client = app.test_client()
+        self.event_date = (date.today() + timedelta(days=7)).isoformat()
+        self.auth_headers = {'Authorization': 'Basic YWRtaW46Y2hhbmdlLW1l'}
+
+    def submit_event(self, **overrides):
+        data = {
+            'name': 'Local Fair', 'description': 'A local community fair.',
+            'community': 'buckingham', 'date[]': [self.event_date],
+            'start_time[]': ['10:30'], 'end_time[]': ['12:30'],
+            'venue': 'Town Hall',
+        }
+        data.update(overrides)
+        return self.client.post('/events/add', data=data)
+
+    def test_add_event_button_precedes_date_order_heading(self):
+        response = self.client.get('/events')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'<div class="event-add-action">', response.data)
+        self.assertIn(b'Upcoming Events by Date', response.data)
+        self.assertLess(response.data.index(b'<div class="event-add-action">'), response.data.index(b'Upcoming Events by Date'))
+        self.assertLess(response.data.index(b'aria-label="Filter events by location"'), response.data.index(b'Upcoming Events by Date'))
+        self.assertLess(response.data.index(b'Upcoming Events by Date'), response.data.index(b'id="events-list"') if b'id="events-list"' in response.data else response.data.index(b'No upcoming events'))
+
+    def test_events_require_admin_approval_and_filter_by_community(self):
+        from app import load_events
+
+        response = self.submit_event()
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn(b'Local Fair', self.client.get('/events').data)
+        event = load_events()[0]
+        self.assertEqual(self.client.get(f"/events/{event['id']}").status_code, 404)
+        self.assertFalse(event['approved'])
+        self.assertEqual(event['schedule'], [
+            {'date': self.event_date, 'start_time': '10:30', 'end_time': '12:30'},
+        ])
+        self.assertEqual(self.client.post(f"/admin/events/{event['id']}/approve").status_code, 401)
+        admin_page = self.client.get('/admin', headers=self.auth_headers)
+        self.assertIn(b'Local Fair', admin_page.data)
+        self.assertIn(b'Approve Event', admin_page.data)
+        self.assertEqual(self.client.post(f"/admin/events/{event['id']}/approve", headers=self.auth_headers).status_code, 302)
+
+        events_page = self.client.get('/events')
+        self.assertIn(b'href="/events/localfair"', events_page.data)
+        self.assertEqual(self.client.get('/events/localfair').status_code, 200)
+        self.assertIn(b'Local Fair', self.client.get('/events?community=buckingham').data)
+        self.assertNotIn(b'Local Fair', self.client.get('/events?community=woking').data)
+        self.assertIn(b'Local Fair', self.client.get('/events').data)
+        self.assertIn(b'Town Hall', self.client.get(f"/events/{event['id']}").data)
+
+    def test_event_edit_remains_private_until_admin_approves(self):
+        from app import load_events
+
+        self.submit_event()
+        event_id = load_events()[0]['id']
+        self.client.post(f'/admin/events/{event_id}/approve', headers=self.auth_headers)
+
+        edit_page = self.client.get(f'/events/{event_id}/edit')
+        self.assertEqual(edit_page.status_code, 200)
+        self.assertIn(b'Local Fair', edit_page.data)
+        self.assertIn(f'action="/events/{event_id}/edit"'.encode(), edit_page.data)
+        self.assertIn(b'Submit Changes for Review', edit_page.data)
+        initial_detail = self.client.get(f'/events/{event_id}')
+        self.assertIn(f'href="/events/{event_id}/edit">Edit Event</a>'.encode(), initial_detail.data)
+        self.assertIn(f'action="/events/{event_id}/delete"'.encode(), initial_detail.data)
+        invalid_edit = self.client.post(f'/events/{event_id}/edit', data={
+            'name': 'Invalid Fair', 'description': 'Missing venue', 'community': 'buckingham',
+            'date[]': [self.event_date], 'start_time[]': ['10:30'], 'end_time[]': ['12:30'],
+        })
+        self.assertEqual(invalid_edit.status_code, 400)
+        self.assertNotIn('pending_action', load_events()[0])
+        changed_date = (date.today() + timedelta(days=9)).isoformat()
+        changed = self.client.post(f'/events/{event_id}/edit', data={
+            'name': 'Updated Local Fair', 'description': 'Revised event details',
+            'community': 'woking', 'venue': 'New Hall',
+            'date[]': [changed_date], 'start_time[]': ['14:00'], 'end_time[]': ['16:00'],
+            'details_url': 'https://example.com/new-tickets',
+        })
+        self.assertEqual(changed.status_code, 302)
+        stored = load_events()[0]
+        self.assertEqual(stored['name'], 'Local Fair')
+        self.assertEqual(stored['community'], 'buckingham')
+        self.assertEqual(stored['pending_action'], 'edit')
+        self.assertEqual(stored['pending_changes']['name'], 'Updated Local Fair')
+        self.assertIn(b'Local Fair', self.client.get(f'/events/{event_id}').data)
+        self.assertIn(b'change awaiting admin review', self.client.get(f'/events/{event_id}').data)
+        self.assertIn(b'Local Fair', self.client.get('/events?community=buckingham').data)
+        self.assertNotIn(b'Updated Local Fair', self.client.get('/events').data)
+        self.assertEqual(self.client.post(f'/events/{event_id}/edit', data={}).status_code, 409)
+        self.assertEqual(self.client.post(f'/events/{event_id}/delete').status_code, 409)
+
+        review = self.client.get('/admin', headers=self.auth_headers)
+        self.assertIn(b'Updated Local Fair', review.data)
+        self.assertIn(b'Edit Event', review.data)
+        self.assertIn(b'<b>Before:</b> Local Fair', review.data)
+        self.assertIn(b'<b>After:</b> Updated Local Fair', review.data)
+        self.assertIn(f'{date.fromisoformat(changed_date):%d/%m/%Y}: 14:00 - 16:00'.encode(), review.data)
+        self.client.post(f'/admin/events/{event_id}/approve', headers=self.auth_headers)
+        updated = load_events()[0]
+        self.assertEqual(updated['name'], 'Updated Local Fair')
+        self.assertEqual(updated['community'], 'woking')
+        self.assertNotIn('pending_changes', updated)
+        self.assertIn(b'Updated Local Fair', self.client.get('/events?community=woking').data)
+        self.assertNotIn(b'Updated Local Fair', self.client.get('/events?community=buckingham').data)
+
+    def test_event_edit_rejection_keeps_public_event_and_delete_needs_approval(self):
+        from app import load_events
+
+        self.submit_event()
+        event_id = load_events()[0]['id']
+        self.client.post(f'/admin/events/{event_id}/approve', headers=self.auth_headers)
+        self.assertEqual(self.client.post(f'/admin/events/{event_id}/reject', headers=self.auth_headers).status_code, 409)
+        self.submit_event(name='Another Pending Fair')
+        pending_id = load_events()[1]['id']
+        self.assertEqual(self.client.post(f'/events/{pending_id}/delete').status_code, 404)
+
+        self.submit_event(name='Yet Another Pending Fair')
+        self.assertEqual(self.client.post(f'/events/{event_id}/edit', data={
+            'name': 'Changed Fair', 'description': 'Revised', 'community': 'buckingham',
+            'venue': 'Town Hall', 'date[]': [self.event_date],
+            'start_time[]': ['10:30'], 'end_time[]': ['12:30'],
+        }).status_code, 302)
+        self.client.post(f'/admin/events/{event_id}/reject', headers=self.auth_headers)
+        self.assertEqual(load_events()[0]['name'], 'Local Fair')
+        self.assertNotIn('pending_action', load_events()[0])
+
+        response = self.client.post(f'/events/{event_id}/delete')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(load_events()[0]['pending_action'], 'delete')
+        self.assertIn(b'Local Fair', self.client.get('/events').data)
+        review = self.client.get('/admin', headers=self.auth_headers)
+        self.assertIn(b'Delete Event', review.data)
+        self.client.post(f'/admin/events/{event_id}/reject', headers=self.auth_headers)
+        self.assertIn(b'Local Fair', self.client.get('/events').data)
+        self.client.post(f'/events/{event_id}/delete')
+        self.client.post(f'/admin/events/{event_id}/approve', headers=self.auth_headers)
+        self.assertFalse(any(item['id'] == event_id for item in load_events()))
+        self.assertEqual(self.client.get(f'/events/{event_id}').status_code, 404)
+
+    @patch('app.is_cosmos_configured', return_value=True)
+    @patch('app.get_events_container')
+    @patch('app.load_events')
+    def test_approving_event_community_edit_moves_cosmos_partition(self, load_events, get_container, _configured):
+        event = {
+            'id': 'event-one', 'community': 'buckingham', 'approved': True,
+            'pending_action': 'edit', 'pending_changes': {'community': 'woking'},
+        }
+        load_events.return_value = [event]
+
+        response = self.client.post('/admin/events/event-one/approve', headers=self.auth_headers)
+        self.assertEqual(response.status_code, 302)
+        updated = get_container.return_value.upsert_item.call_args.args[0]
+        self.assertEqual(updated['community'], 'woking')
+        self.assertNotIn('pending_action', updated)
+        get_container.return_value.delete_item.assert_called_once_with(
+            item='event-one', partition_key='buckingham',
+        )
+
+    def test_event_details_count_once_per_session(self):
+        from app import load_events
+
+        self.submit_event()
+        event_id = load_events()[0]['id']
+        self.assertEqual(self.client.get(f'/events/{event_id}').status_code, 404)
+        self.assertEqual(load_events()[0]['usage_count'], 0)
+        self.client.post(f'/admin/events/{event_id}/approve', headers=self.auth_headers)
+
+        self.client.get(f'/events/{event_id}')
+        self.client.get(f'/events/{event_id}')
+        self.assertEqual(load_events()[0]['usage_count'], 1)
+
+        another_visitor = app.test_client()
+        another_visitor.get(f'/events/{event_id}')
+        self.assertEqual(load_events()[0]['usage_count'], 2)
+
+    def test_event_attendance_counts_one_choice_per_session_and_allows_switching(self):
+        from app import load_events
+
+        self.submit_event()
+        event_id = load_events()[0]['id']
+        vote_url = f'/events/{event_id}/attendance'
+        self.assertEqual(self.client.post(vote_url, data={'attendance': 'going'}).status_code, 404)
+        self.client.post(f'/admin/events/{event_id}/approve', headers=self.auth_headers)
+        self.assertEqual(self.client.post(vote_url, data={'attendance': 'invalid'}).status_code, 400)
+
+        data = {'attendance': 'going', 'community': 'buckingham', 'q': 'Local'}
+        first = self.client.post(vote_url, data=data)
+        self.assertEqual(first.status_code, 302)
+        self.assertIn('community=buckingham', first.location)
+        self.assertIn('q=Local', first.location)
+        self.client.post(vote_url, data=data)
+        self.assertEqual(load_events()[0]['going_count'], 1)
+        self.assertEqual(load_events()[0]['not_going_count'], 0)
+        tile = self.client.get('/events?community=buckingham&q=Local')
+        self.assertIn(b'Going 1</button>', tile.data)
+        self.assertIn(b'Not Going 0</button>', tile.data)
+        self.assertIn(b'name="q" value="Local"', tile.data)
+        tile_actions = tile.data.split(b'<div class="card-actions event-card-actions">', 1)[1].split(b'</article>', 1)[0]
+        self.assertLess(tile_actions.index(b'View details'), tile_actions.index(b'Going 1</button>'))
+        self.assertLess(tile_actions.index(b'Going 1</button>'), tile_actions.index(b'Not Going 0</button>'))
+        self.assertLess(tile_actions.index(b'Not Going 0</button>'), tile_actions.index(b'Viewed 0 times'))
+
+        switched = self.client.post(vote_url, data={'attendance': 'not_going', 'source': 'detail'})
+        self.assertEqual(switched.location, f'/events/{event_id}')
+        self.assertEqual(load_events()[0]['going_count'], 0)
+        self.assertEqual(load_events()[0]['not_going_count'], 1)
+        details = self.client.get(f'/events/{event_id}')
+        self.assertIn(b'Not Going 1</button>', details.data)
+        self.assertIn(b'event-attendance-not_going" aria-pressed="true"', details.data)
+
+        another_visitor = app.test_client()
+        another_visitor.post(vote_url, data={'attendance': 'going'})
+        self.assertEqual(load_events()[0]['going_count'], 1)
+        self.assertEqual(load_events()[0]['not_going_count'], 1)
+
+    def test_other_is_available_for_events_without_changing_listing_communities(self):
+        from app import load_events
+
+        form = self.client.get('/events/add')
+        self.assertIn(b'<option value="other"', form.data)
+        self.assertIn(b'>Other</option>', form.data)
+        self.assertNotIn(b'<option value="other"', self.client.get('/add').data)
+
+        response = self.submit_event(community='other', name='Other Area Fair')
+        self.assertEqual(response.status_code, 302)
+        event = load_events()[0]
+        self.assertEqual(event['community'], 'other')
+        self.assertNotIn(b'Other Area Fair', self.client.get('/events?community=other').data)
+        self.client.post(f"/admin/events/{event['id']}/approve", headers=self.auth_headers)
+        filtered = self.client.get('/events?community=other')
+        self.assertEqual(filtered.status_code, 200)
+        self.assertIn(b'Other Area Fair', filtered.data)
+        self.assertIn(b'class="tag">Other</span>', filtered.data)
+        self.assertIn(b'href="/events?community=other"', filtered.data)
+        self.assertNotIn(b'Other Area Fair', self.client.get('/events?community=woking').data)
+
+    def test_event_search_filters_upcoming_approved_events_by_text_and_location(self):
+        from app import load_events
+
+        self.submit_event(name='Autumn Craft Fair', description='Handmade gifts')
+        event_id = load_events()[0]['id']
+        self.assertNotIn(b'Autumn Craft Fair', self.client.get('/events?q=craft').data)
+        self.client.post(f'/admin/events/{event_id}/approve', headers=self.auth_headers)
+        self.submit_event(name='Garden Concert', description='Outdoor music', community='woking')
+        second_id = load_events()[1]['id']
+        self.client.post(f'/admin/events/{second_id}/approve', headers=self.auth_headers)
+
+        response = self.client.get('/events?community=buckingham&q=CrAfT')
+        self.assertIn(b'Autumn Craft Fair', response.data)
+        self.assertNotIn(b'Garden Concert', response.data)
+        self.assertIn(b'class="search-form hero-search events-search"', response.data)
+        self.assertIn(b'name="community" value="buckingham"', response.data)
+        self.assertIn(b'name="q" value="CrAfT"', response.data)
+        self.assertIn(b'href="/events?community=buckingham">Clear</a>', response.data)
+        self.assertIn(b'community=woking&amp;q=CrAfT', response.data)
+        self.assertIn(b'Autumn Craft Fair', self.client.get('/events?q=handmade').data)
+        self.assertIn(b'Autumn Craft Fair', self.client.get('/events?q=town%20hall').data)
+        self.assertIn(b'Autumn Craft Fair', self.client.get('/events?q=buckingham').data)
+        self.assertIn(b'Autumn Craft Fair', self.client.get(f'/events?q={date.fromisoformat(self.event_date):%d/%m/%Y}').data)
+        self.assertNotIn(b'Autumn Craft Fair', self.client.get('/events?q=concert').data)
+        self.assertIn(b'No upcoming events match your search.', self.client.get('/events?q=unmatched').data)
+        self.assertNotIn(b'>Clear</a>', self.client.get('/events').data)
+
+    def test_events_reject_invalid_or_past_dates_and_can_be_removed(self):
+        from app import load_events
+
+        for data in ({'date[]': [(date.today() - timedelta(days=1)).isoformat()]},
+                 {'date[]': ['invalid']}, {'start_time[]': ['later']},
+                 {'end_time[]': ['09:00']}, {'end_time[]': []},
+                     {'community': 'unknown'}, {'name': ''}, {'start_time[]': []},
+                     {'venue': ''}, {'venue': '   '}):
+            with self.subTest(data=data):
+                self.assertEqual(self.submit_event(**data).status_code, 400)
+        self.assertEqual(load_events(), [])
+
+        self.submit_event()
+        event_id = load_events()[0]['id']
+        self.client.post(f'/admin/events/{event_id}/reject', headers=self.auth_headers)
+        self.assertEqual(load_events(), [])
+
+    def test_past_events_are_hidden_from_public_listing(self):
+        from app import save_event
+
+        save_event({
+            'id': 'past', 'name': 'Old Fair', 'description': 'Already finished',
+            'community': 'woking', 'date': (date.today() - timedelta(days=1)).isoformat(),
+            'time': '10:30', 'venue': '', 'approved': True,
+        })
+        self.assertNotIn(b'Old Fair', self.client.get('/events').data)
+        self.assertIn(b'Woking', self.client.get('/events/add').data)
+
+        save_event({
+            'id': 'mixed', 'name': 'Recurring Fair', 'description': 'Two event dates',
+            'community': 'woking', 'venue': '', 'approved': True,
+            'schedule': [
+                {'date': (date.today() - timedelta(days=1)).isoformat(), 'start_time': '09:00', 'end_time': '10:00'},
+                {'date': self.event_date, 'start_time': '11:00', 'end_time': '12:00'},
+            ],
+        })
+        response = self.client.get('/events?community=woking')
+        self.assertEqual(response.data.count(b'<h3>Recurring Fair</h3>'), 1)
+        self.assertIn(b'11:00 - 12:00', response.data)
+        self.assertNotIn(b'09:00 - 10:00', response.data)
+        self.assertEqual(self.client.get('/events/past').status_code, 404)
+
+    def test_multiple_dates_have_independent_times_and_appear_in_admin_review(self):
+        from app import load_events
+
+        later_date = (date.today() + timedelta(days=8)).isoformat()
+        response = self.submit_event(**{
+            'date[]': [self.event_date, later_date],
+            'start_time[]': ['10:30', '18:00'],
+            'end_time[]': ['12:30', '20:15'],
+            'details_url': 'https://example.com/fair-tickets',
+        })
+        self.assertEqual(response.status_code, 302)
+        event = load_events()[0]
+        self.assertEqual(len(event['schedule']), 2)
+        self.assertEqual(event['venue'], 'Town Hall')
+        self.assertEqual(event['details_url'], 'https://example.com/fair-tickets')
+        admin_response = self.client.get('/admin', headers=self.auth_headers)
+        self.assertIn(b'Name: Local Fair', admin_response.data)
+        self.assertIn(b'<strong>Community:</strong> buckingham', admin_response.data)
+        self.assertIn(f'<strong>Date and Time:</strong> <time datetime="{self.event_date}">{date.fromisoformat(self.event_date):%d/%m/%Y}</time> 10:30 - 12:30'.encode(), admin_response.data)
+        self.assertIn(f'<strong>Date and Time:</strong> <time datetime="{later_date}">{date.fromisoformat(later_date):%d/%m/%Y}</time> 18:00 - 20:15'.encode(), admin_response.data)
+        self.assertIn(b'<strong>Address / Venue:</strong> Town Hall', admin_response.data)
+        self.assertIn(b'<strong>Description:</strong> A local community fair.', admin_response.data)
+        self.assertIn(b'>https://example.com/fair-tickets</a>', admin_response.data)
+
+        self.client.post(f"/admin/events/{event['id']}/approve", headers=self.auth_headers)
+        published_review = self.client.get('/admin', headers=self.auth_headers)
+        self.assertIn(b'<h3>Name: Local Fair</h3>', published_review.data)
+        self.assertIn(b'<strong>Date and Time:</strong>', published_review.data)
+        public_response = self.client.get('/events?community=buckingham')
+        self.assertEqual(public_response.data.count(b'<h3>Local Fair</h3>'), 2)
+        self.assertIn(b'class="listing-grid events-grid"', public_response.data)
+        self.assertIn(b'class="tag">Buckingham</span>', public_response.data)
+        self.assertNotIn(b'24-hour', public_response.data)
+        self.assertIn(date.fromisoformat(self.event_date).strftime('%d/%m/%Y').encode(), public_response.data)
+        self.assertIn(b'10:30 - 12:30', public_response.data)
+        self.assertIn(b'18:00 - 20:15', public_response.data)
+        first_card = public_response.data.split(b'<h3>Local Fair</h3>', 1)[1].split(b'</article>', 1)[0]
+        self.assertIn(
+            f'<time datetime="{self.event_date}">{date.fromisoformat(self.event_date):%d/%m/%Y}</time> <span>10:30 - 12:30</span>'.encode(),
+            first_card,
+        )
+        self.assertLess(first_card.index(b'class="listing-location-tags"'), first_card.index(b'class="card-actions event-card-actions"'))
+        actions = first_card.split(b'<div class="card-actions event-card-actions">', 1)[1]
+        self.assertLess(actions.index(b'View details'), actions.index(b'Viewed 0 times'))
+        self.assertIn(b'class="details-cta"', actions)
+        self.assertIn(b'href="/events/localfair"', public_response.data)
+        self.assertNotIn(b'Town Hall', public_response.data)
+        self.assertNotIn(b'href="https://example.com/fair-tickets"', public_response.data)
+        self.client.post(f"/events/{event['id']}/attendance", data={'attendance': 'going'})
+        voted_tiles = self.client.get('/events?community=buckingham')
+        self.assertEqual(voted_tiles.data.count(b'Going 1</button>'), 2)
+
+        details = self.client.get(f"/events/{event['id']}")
+        self.assertEqual(details.status_code, 200)
+        self.assertIn(b'<main class="container detail-page">', details.data)
+        self.assertIn(b'<section class="detail-card">', details.data)
+        self.assertIn(b'class="detail-grid"', details.data)
+        self.assertIn(b'class="detail-item event-detail-dates"', details.data)
+        self.assertIn(b'</use></svg>Date and Time</span>', details.data)
+        self.assertIn(b'href="#field-icon-calendar"', details.data)
+        updated_tiles = self.client.get('/events?community=buckingham')
+        self.assertEqual(updated_tiles.data.count(b'Viewed 1 time'), 2)
+        self.assertIn(b'Town Hall', details.data)
+        self.assertIn(b'Buckingham', details.data)
+        self.assertIn(b'href="https://example.com/fair-tickets" target="_blank" rel="noopener noreferrer">https://example.com/fair-tickets</a>', details.data)
+        self.assertLess(details.data.index(b'<div class="event-attendance"'), details.data.index(b'>Back to Events</a>'))
+        self.assertIn(b'18:00 - 20:15', details.data)
+        self.assertNotIn(b'24-hour', details.data)
+
+    def test_upcoming_event_rows_sort_nearest_date_first(self):
+        from app import save_event
+
+        late_date = (date.today() + timedelta(days=12)).isoformat()
+        early_date = (date.today() + timedelta(days=2)).isoformat()
+        save_event({
+            'id': 'late', 'name': 'Later Fair', 'description': 'Coming later', 'venue': 'Hall',
+            'community': 'woking', 'approved': True,
+            'schedule': [{'date': late_date, 'start_time': '08:00', 'end_time': '09:00'}],
+        })
+        save_event({
+            'id': 'early', 'name': 'Sooner Fair', 'description': 'Coming soon', 'venue': 'Town Hall',
+            'community': 'woking', 'approved': True,
+            'schedule': [{'date': early_date, 'start_time': '18:00', 'end_time': '19:00'}],
+        })
+        response = self.client.get('/events?community=woking')
+        self.assertLess(response.data.index(b'Sooner Fair'), response.data.index(b'Later Fair'))
+        self.assertIn(date.fromisoformat(early_date).strftime('%d/%m/%Y').encode(), response.data)
+        self.assertIn(b'18:00 - 19:00', response.data)
+        self.assertNotIn(b'Town Hall', response.data)
+
+    def test_event_form_keeps_multiple_dates_after_invalid_submission(self):
+        later_date = (date.today() + timedelta(days=8)).isoformat()
+        response = self.submit_event(**{
+            'date[]': [self.event_date, later_date],
+            'start_time[]': ['10:30', '18:00'],
+            'end_time[]': ['12:30', '17:00'],
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(b'Address / Venue', response.data)
+        self.assertIn(b'data-add-event-date', response.data)
+        self.assertIn(b'<strong>Event happening over multiple days?</strong>', response.data)
+        self.assertIn(b'Date and Time <span class="field-marker required">Required</span>', response.data)
+        self.assertIn(b'href="#field-icon-calendar"', response.data)
+        self.assertIn(b'href="#field-icon-hours"', response.data)
+        self.assertLess(
+            response.data.index(b'id="event-schedule-title"'),
+            response.data.index(b'<fieldset class="event-schedule" aria-labelledby="event-schedule-title">'),
+        )
+        self.assertIn(b'field-icon-name', response.data)
+        self.assertIn(b'field-icon-address', response.data)
+        self.assertIn(f'value="{later_date}"'.encode(), response.data)
+        self.assertIn(b'value="18:00"', response.data)
+        self.assertEqual(response.data.split(b'<template id="event-date-template">')[0].count(b'data-remove-date'), 1)
+
+    def test_event_url_validation_and_first_date_remove_button(self):
+        form_response = self.client.get('/events/add')
+        form_markup = form_response.data.split(b'<template id="event-date-template">')[0]
+        self.assertIn(b'<button type="submit" class="primary-btn">Submit Event</button>', form_markup)
+        self.assertNotIn(b'data-remove-date', form_markup)
+        self.assertIn(b'name="venue"', form_markup)
+        self.assertIn(b'name="details_url"', form_markup)
+        self.assertIn(b'Event Details or Tickets Link', form_markup)
+        self.assertIn(b'data-add-event-date', form_markup)
+        self.assertIn(b'href="#field-icon-calendar"></use></svg>Date', form_markup)
+        self.assertIn(b'href="#field-icon-hours"></use></svg>Start Time', form_markup)
+        self.assertIn(b'href="#field-icon-hours"></use></svg>End Time', form_markup)
+        self.assertIn(b'href="#field-icon-calendar"></use></svg>Date', form_response.data.split(b'<template id="event-date-template">')[1])
+
+        for url in ('javascript:alert(1)', 'https://[broken'):
+            with self.subTest(url=url):
+                response = self.submit_event(details_url=url)
+                self.assertEqual(response.status_code, 400)
+                self.assertIn(b'Enter a valid http:// or https:// event link.', response.data)
+        from app import load_events
+        self.assertEqual(load_events(), [])
+
+    @patch.dict(os.environ, {
+        'COSMOS_ENDPOINT': 'https://example.documents.azure.com:443/',
+        'COSMOS_KEY': 'test-key',
+        'COSMOS_DATABASE': 'local-directory',
+        'COSMOS_CONTAINER': 'listings',
+    })
+    @patch('app.CosmosClient')
+    def test_cosmos_events_use_separate_community_partition(self, cosmos_client):
+        from app import PartitionKey, delete_event, get_events_container, load_events, save_event
+
+        container = cosmos_client.return_value.get_database_client.return_value.create_container_if_not_exists.return_value
+        get_events_container()
+        cosmos_client.return_value.get_database_client.return_value.create_container_if_not_exists.assert_called_with(
+            id='events', partition_key=PartitionKey(path='/community'),
+        )
+
+        container.query_items.return_value = []
+        self.assertEqual(load_events('woking'), [])
+        container.query_items.assert_called_with(
+            query='SELECT * FROM c WHERE c.community = @community',
+            parameters=[{'name': '@community', 'value': 'woking'}],
+            partition_key='woking',
+        )
+        event = {'id': 'event-one', 'community': 'woking'}
+        save_event(event)
+        container.upsert_item.assert_called_with(event)
+        delete_event(event)
+        container.delete_item.assert_called_with(item='event-one', partition_key='woking')
 
 
 if __name__ == '__main__':
