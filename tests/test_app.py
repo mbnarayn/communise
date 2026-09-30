@@ -114,6 +114,12 @@ class AppTests(unittest.TestCase):
                 self.assertIn(b'<a href="/terms">Terms of Use</a>', response.data)
                 self.assertIn(b'<a href="/add">Add Your Listing</a>', response.data)
                 self.assertIn(b'data-install-communise', response.data)
+                self.assertIn(b'<div class="container site-footer-install">', response.data)
+                footer_html = response.data.split(b'<footer class="site-footer">', 1)[1]
+                self.assertLess(
+                    footer_html.index(b'<a href="/add">Add Your Listing</a>'),
+                    footer_html.index(b'data-install-communise'),
+                )
 
         admin_response = self.client.get('/admin', headers={
             'Authorization': 'Basic YWRtaW46Y2hhbmdlLW1l',

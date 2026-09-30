@@ -65,6 +65,12 @@ body {
   text-decoration: underline;
 }
 
+.site-footer-install {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.55rem;
+}
+
 .install-communise-button {
   display: inline-flex;
   align-items: center;
@@ -1197,7 +1203,7 @@ select {
   display: inline-block;
   border-radius: 7px;
   color: #fff;
-  font-size: 0.75rem;
+  font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.02em;
   margin: 0.35rem 0 0.45rem;
@@ -1220,7 +1226,7 @@ select {
 .review-note {
   margin: 0 0 0.6rem;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.69rem;
 }
 
 .change-summary {
@@ -1234,7 +1240,7 @@ select {
 .change-summary h2 {
   margin: 0 0 0.6rem;
   color: #92400e;
-  font-size: 0.95rem;
+  font-size: 0.8rem;
 }
 
 .change-row {
@@ -1249,7 +1255,7 @@ select {
 .change-row strong {
   display: block;
   color: var(--primary-dark);
-  font-size: 0.8rem;
+  font-size: 0.69rem;
 }
 
 .change-values {
@@ -1257,7 +1263,7 @@ select {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   margin-top: 0.2rem;
-  font-size: 0.8rem;
+  font-size: 0.69rem;
   overflow-wrap: anywhere;
 }
 
@@ -1272,11 +1278,27 @@ select {
 
 .admin-card {
   max-width: 900px;
+  font-size: 0.69rem;
+}
+
+.admin-card > .admin-section > h1 {
+  font-size: clamp(1.12rem, 1.6vw, 1.6rem);
+}
+
+.admin-card > .admin-section > p {
+  margin-bottom: 0.72rem;
+  font-size: 0.76rem;
+  line-height: 1.45;
 }
 
 .admin-search {
   max-width: 520px;
   margin: 1rem 0 1.25rem;
+}
+
+.admin-search .secondary-btn,
+.admin-actions button {
+  font-size: 0.69rem;
 }
 
 .admin-item {
@@ -1386,7 +1408,7 @@ select {
     min-height: 36px;
   }
 
-  .site-footer-links > .install-communise-button {
+  .site-footer-install > .install-communise-button {
     width: 100%;
     max-width: 280px;
   }
@@ -1416,7 +1438,8 @@ select {
   }
 
   .admin-item {
-    grid-template-columns: 1fr;
+    padding: 0.8rem;
+    border-radius: 10px;
   }
 
   .admin-media {
@@ -1468,7 +1491,49 @@ select {
   }
 
   .admin-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.45rem;
     width: 100%;
+    align-items: stretch;
+  }
+
+  .admin-actions > form,
+  .admin-actions > a {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+  }
+
+  .admin-actions button,
+  .admin-actions > a {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 0.55rem 0.65rem;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    box-sizing: border-box;
+  }
+
+  .admin-search {
+    width: 100%;
+    max-width: none;
+  }
+
+  .change-summary {
+    padding: 0.6rem;
+  }
+
+  .change-values {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+  }
+
+  .admin-card.form-card {
+    padding: 0.85rem;
+    border-radius: 12px;
   }
 
   .detail-actions,
