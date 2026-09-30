@@ -96,6 +96,7 @@
             >
               <div class="listing-card-meta">
                 <div>
+                  {% set listing_community = communities | selectattr('slug', 'equalto', listing.community) | map(attribute='label') | first | default(listing.community, true) %}
                   {% if feature_flags.get('category', True) %}
                     <div class="tag">{{ listing.category }}</div>
                   {% endif %}
@@ -113,10 +114,16 @@
               {% if feature_flags.get('description', True) %}
                 <p>{{ listing.description }}</p>
               {% endif %}
-              <ul>
-                {% if feature_flags.get('address', True) %}
-                  <li><strong>Address:</strong> {{ listing.address }}</li>
+              {% set listing_community = communities | selectattr('slug', 'equalto', listing.community) | map(attribute='label') | first | default(listing.community, true) %}
+              <div class="listing-location-tags">
+                {% if feature_flags.get('community', True) %}
+                  <div class="tag">{{ listing_community }}</div>
                 {% endif %}
+                {% if feature_flags.get('sub_community', True) and listing.sub_community %}
+                  <div class="tag">{{ listing.sub_community }}</div>
+                {% endif %}
+              </div>
+              <ul>
                 {% if feature_flags.get('phone', True) and listing.phone %}
                   <li><strong>Phone:</strong> {{ listing.phone | phone_format }}</li>
                 {% endif %}

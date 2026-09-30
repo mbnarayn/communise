@@ -40,6 +40,7 @@ class AppTests(unittest.TestCase):
 
     def test_daily_opening_hours_are_stored_as_periods(self):
         self.client.post('/add', data={
+            'community': 'miltonkeynes',
             'name': 'Daily Hours Test',
             'category': 'Education',
             'description': 'A tutor with daily hours.',
@@ -79,11 +80,23 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Woking', response.data)
         self.assertIn(b'Buckingham', response.data)
-        self.assertIn(b'Listings across all of Communise', response.data)
+        self.assertIn(b'Supporting Local Communities Through Community Advertising', response.data)
         self.assertNotIn(b'Used this listing', response.data)
         self.assertIn(b'Viewed 0 times', response.data)
         self.assertIn(b'Hidden Listing', response.data)
         self.assertLess(response.data.index(b'Maple Cafe'), response.data.index(b'Hidden Listing'))
+
+    def test_home_page_has_social_preview_metadata(self):
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            b'property="og:title" content="Supporting Local Communities Through Community Advertising"',
+            response.data,
+        )
+        self.assertIn(
+            b'name="description" content="Discover, share, and support local businesses and services, through your community\'s digital noticeboard."',
+            response.data,
+        )
 
     def test_non_featured_listing_order_is_deterministic(self):
         listings = [
@@ -112,8 +125,96 @@ class AppTests(unittest.TestCase):
         self.assertIn(b'Woking', response.data)
         self.assertIn(b'Woking Market Hall', response.data)
 
+    def test_only_community_name_category_and_description_are_required(self):
+        response = self.client.post('/add', data={
+            'community': 'miltonkeynes',
+            'name': 'Minimal Required Fields Shop',
+            'category': 'Shopping',
+            'description': 'A listing without an address.',
+        })
+        self.assertEqual(response.status_code, 302)
+
+        from app import load_listings
+        listing = next(item for item in load_listings() if item.get('name') == 'Minimal Required Fields Shop')
+        self.assertEqual(listing.get('address'), '')
+
+        missing_description = self.client.post('/add', data={
+            'community': 'miltonkeynes',
+            'name': 'Missing Description Shop',
+            'category': 'Shopping',
+        })
+        self.assertEqual(missing_description.status_code, 200)
+        self.assertIn(b'Please provide a community, business name, valid category, and description.', missing_description.data)
+
+        missing_community = self.client.post('/add', data={
+            'name': 'Missing Community Shop',
+            'category': 'Shopping',
+            'description': 'A listing with no community.',
+        })
+        self.assertEqual(missing_community.status_code, 200)
+        self.assertIn(b'Please provide a community, business name, valid category, and description.', missing_community.data)
+
+        oversized_description = self.client.post('/add', data={
+            'community': 'miltonkeynes',
+            'name': 'Long Description Shop',
+            'category': 'Shopping',
+            'description': 'x' * 151,
+        })
+        self.assertEqual(oversized_description.status_code, 200)
+        self.assertIn(b'Description must be 150 characters or fewer.', oversized_description.data)
+
+    def test_listing_form_orders_and_marks_fields(self):
+        response = self.client.get('/add')
+        self.assertEqual(response.status_code, 200)
+        for field in (b'name="community"', b'name="name"', b'name="description"', b'name="category"'):
+            self.assertIn(field, response.data)
+        field_positions = [
+            response.data.index(b'name="community"'),
+            response.data.index(b'name="name"'),
+            response.data.index(b'name="description"'),
+            response.data.index(b'name="category"'),
+        ]
+        self.assertEqual(field_positions, sorted(field_positions))
+        self.assertIn(b'maxlength="150"', response.data)
+        self.assertIn(b'placeholder="https://share.google/..."', response.data)
+        self.assertIn(b'placeholder="20 Bobbin Road, Whitehouse, Milton Keynes, MK8 1EP"', response.data)
+        self.assertIn(b'>Required</span>', response.data)
+        self.assertIn(b'>Optional</span>', response.data)
+        for icon in (
+            b'field-icon-community', b'field-icon-name', b'field-icon-description',
+            b'field-icon-category', b'field-icon-logo', b'field-icon-details',
+            b'field-icon-phone', b'field-icon-subcommunity', b'field-icon-address',
+            b'field-icon-website', b'field-icon-email', b'field-icon-instagram',
+            b'field-icon-whatsapp', b'field-icon-facebook', b'field-icon-google',
+            b'field-icon-hours', b'field-icon-offers',
+        ):
+            self.assertIn(icon, response.data)
+        optional_field_names = [
+            b'name="logo"',
+            b'name="additional_information"',
+            b'name="phone_number"',
+            b'name="sub_community"',
+            b'name="address"',
+            b'name="instagram"',
+            b'name="whatsapp_group"',
+            b'name="facebook"',
+            b'name="google_maps_location"',
+            b'name="google_business_profile"',
+            b'name="opening_monday_1_open"',
+            b'name="deals"',
+        ]
+        optional_field_positions = [response.data.index(field) for field in optional_field_names]
+        self.assertEqual(optional_field_positions, sorted(optional_field_positions))
+        self.assertIn(b'id="description-character-count" aria-live="polite">0 / 150 characters', response.data)
+        self.assertIn(b"descriptionInput.addEventListener('input', updateDescriptionCharacterCount)", response.data)
+
+        edit_response = self.client.get('/listing/1/edit')
+        description_length = len(get_seed_data()[0]['description'])
+        self.assertIn(f'{description_length} / 150 characters'.encode(), edit_response.data)
+
     def test_can_submit_listing(self):
         response = self.client.post('/add', data={
+            'community': 'miltonkeynes',
             'name': 'Corner Market Pending Test',
             'category': 'Shopping',
             'description': 'Fresh produce and essentials',
@@ -132,6 +233,7 @@ class AppTests(unittest.TestCase):
 
     def test_local_logo_upload_is_saved_and_referenced(self):
         response = self.client.post('/add', data={
+            'community': 'miltonkeynes',
             'name': 'Logo Upload Test Shop',
             'category': 'Shopping',
             'description': 'A listing with a local logo.',
@@ -141,7 +243,16 @@ class AppTests(unittest.TestCase):
             'facebook': 'Logo Shop',
             'whatsapp_group': 'https://chat.whatsapp.com/logo-shop',
             'sub_community': 'Town Centre',
-            'opening_hours': 'Mon-Fri 9am-5pm',
+            'opening_monday_1_open': '09:00',
+            'opening_monday_1_close': '17:00',
+            'opening_tuesday_1_open': '09:00',
+            'opening_tuesday_1_close': '17:00',
+            'opening_wednesday_1_open': '09:00',
+            'opening_wednesday_1_close': '17:00',
+            'opening_thursday_1_open': '09:00',
+            'opening_thursday_1_close': '17:00',
+            'opening_friday_1_open': '09:00',
+            'opening_friday_1_close': '17:00',
             'additional_information': 'Accessible entrance.',
             'deals': '10% off this week.',
             'logo': (io.BytesIO(b'fake-png-content'), 'logo.png'),
@@ -152,12 +263,18 @@ class AppTests(unittest.TestCase):
         listing = next(item for item in load_listings() if item.get('name') == 'Logo Upload Test Shop')
         logo_url = listing.get('logo_url', '')
         self.assertTrue(logo_url.startswith('/static/uploads/logos/'))
+        self.assertEqual(listing.get('opening_hours', {}).get('monday'), [
+            {'open': '09:00', 'close': '17:00'},
+        ])
+        self.assertEqual(listing.get('opening_hours', {}).get('friday'), [
+            {'open': '09:00', 'close': '17:00'},
+        ])
 
         admin_response = self.client.get('/admin', headers={
             'Authorization': 'Basic YWRtaW46Y2hhbmdlLW1l',
         })
         for value in (logo_url, 'hello@logo-shop.example', '@logo_shop',
-                      'Logo Shop', 'Town Centre', 'Mon-Fri 9am-5pm',
+                      'Logo Shop', 'Town Centre', '09:00', '17:00',
                       'Accessible entrance.', '10% off this week.'):
             self.assertIn(value.encode(), admin_response.data)
 
@@ -169,6 +286,7 @@ class AppTests(unittest.TestCase):
 
     def test_admin_can_approve_listing(self):
         self.client.post('/add', data={
+            'community': 'miltonkeynes',
             'name': 'Admin Approval Test Shop',
             'category': 'Shopping',
             'description': 'Fresh produce and essentials',
@@ -200,6 +318,7 @@ class AppTests(unittest.TestCase):
         self.assertNotIn(b'Maple Cafe', response.data)
 
         self.client.post('/add', data={
+            'community': 'miltonkeynes',
             'name': 'Pending Search Listing',
             'category': 'Education',
             'description': 'A pending tutor listing',
@@ -213,6 +332,7 @@ class AppTests(unittest.TestCase):
 
     def test_contact_button_tracks_usage(self):
         self.client.post('/add', data={
+            'community': 'miltonkeynes',
             'name': 'Contact Count Test Shop',
             'category': 'Shopping',
             'description': 'Fresh produce and essentials',
@@ -234,6 +354,7 @@ class AppTests(unittest.TestCase):
 
     def test_contact_click_is_only_counted_once_per_session(self):
         self.client.post('/add', data={
+            'community': 'miltonkeynes',
             'name': 'Single Session Count Test Shop',
             'category': 'Shopping',
             'description': 'Fresh produce and essentials',
@@ -261,8 +382,10 @@ class AppTests(unittest.TestCase):
 
         self.assertIsInstance(home_features, dict)
         self.assertIsInstance(community_features, dict)
-        self.assertIn('address', home_features)
-        self.assertIn('address', community_features)
+        self.assertIn('community', home_features)
+        self.assertIn('community', community_features)
+        self.assertIn('sub_community', home_features)
+        self.assertIn('sub_community', community_features)
         self.assertIn('usage_counter', home_features)
         self.assertIn('usage_counter', community_features)
         self.assertFalse(home_features.get('phone', True))
@@ -296,11 +419,63 @@ class AppTests(unittest.TestCase):
 
         home_response = self.client.get('/')
         self.assertIn(b'Home Only Listing', home_response.data)
-        self.assertNotIn(b'Community Only Listing', home_response.data)
+        self.assertIn(b'Community Only Listing', home_response.data)
+        self.assertLess(
+            home_response.data.index(b'Home Only Listing'),
+            home_response.data.index(b'Community Only Listing'),
+        )
 
         community_response = self.client.get('/mk')
         self.assertIn(b'Community Only Listing', community_response.data)
-        self.assertNotIn(b'Home Only Listing', community_response.data)
+        self.assertIn(b'Home Only Listing', community_response.data)
+        self.assertLess(
+            community_response.data.index(b'Community Only Listing'),
+            community_response.data.index(b'Home Only Listing'),
+        )
+
+    def test_listing_tiles_show_community_and_optional_subcommunity_instead_of_address(self):
+        save_listings([
+            {
+                'id': 201,
+                'name': 'Tile Location Shop',
+                'category': 'Shopping',
+                'description': 'Location display test.',
+                'address': '20 Bobbin Road',
+                'community': 'miltonkeynes',
+                'sub_community': 'Whitehouse',
+                'approved': True,
+                'homepagefeatured': True,
+                'communitypagefeatured': True,
+            },
+            {
+                'id': 202,
+                'name': 'Community Only Tile Shop',
+                'category': 'Shopping',
+                'description': 'No subcommunity supplied.',
+                'address': 'Other Road',
+                'community': 'woking',
+                'approved': True,
+                'homepagefeatured': True,
+                'communitypagefeatured': True,
+            },
+        ])
+
+        response = self.client.get('/')
+        self.assertIn(b'class="tag">Milton Keynes</div>', response.data)
+        self.assertIn(b'class="tag">Whitehouse</div>', response.data)
+        self.assertIn(b'class="tag">Woking</div>', response.data)
+        self.assertNotIn(b'<strong>Community:</strong>', response.data)
+        self.assertNotIn(b'<strong>Subcommunity:</strong>', response.data)
+        self.assertNotIn(b'<strong>Address:</strong>', response.data)
+        location_index = response.data.index(b'<div class="listing-location-tags">')
+        description_index = response.data.index(b'<p>Location display test.</p>')
+        self.assertGreater(location_index, description_index)
+        community_only_card = response.data.split(b'Community Only Tile Shop', 1)[1].split(b'</article>', 1)[0]
+        self.assertNotIn(b'class="tag"></div>', community_only_card)
+
+        community_response = self.client.get('/mk')
+        self.assertIn(b'class="tag">Milton Keynes</div>', community_response.data)
+        self.assertIn(b'class="tag">Whitehouse</div>', community_response.data)
 
     def test_add_listing_stores_extended_business_fields(self):
         response = self.client.post('/add', data={
@@ -313,11 +488,23 @@ class AppTests(unittest.TestCase):
             'email': 'hello@extendedshop.co.uk',
             'instagram': '@extendedshop',
             'facebook': 'Extended Shop',
+            'google_maps_location': 'https://maps.google.com/?q=extended-shop',
             'google_business_profile': 'https://maps.app.goo.gl/extended-shop',
             'whatsapp_group': 'https://chat.whatsapp.com/example',
             'community': 'woking',
             'sub_community': 'Town Centre',
-            'opening_hours': 'Mon-Sat 9am-5pm',
+            'opening_monday_1_open': '09:00',
+            'opening_monday_1_close': '17:00',
+            'opening_tuesday_1_open': '09:00',
+            'opening_tuesday_1_close': '17:00',
+            'opening_wednesday_1_open': '09:00',
+            'opening_wednesday_1_close': '17:00',
+            'opening_thursday_1_open': '09:00',
+            'opening_thursday_1_close': '17:00',
+            'opening_friday_1_open': '09:00',
+            'opening_friday_1_close': '17:00',
+            'opening_saturday_1_open': '09:00',
+            'opening_saturday_1_close': '17:00',
             'additional_information': 'Family-owned local business',
             'deals': '10% off this week',
         }, follow_redirects=True)
@@ -330,19 +517,38 @@ class AppTests(unittest.TestCase):
         self.assertEqual(listing.get('email'), 'hello@extendedshop.co.uk')
         self.assertEqual(listing.get('instagram'), '@extendedshop')
         self.assertEqual(listing.get('facebook'), 'Extended Shop')
+        self.assertEqual(listing.get('google_maps_location'), 'https://maps.google.com/?q=extended-shop')
         self.assertEqual(listing.get('google_business_profile'), 'https://maps.app.goo.gl/extended-shop')
         self.assertEqual(listing.get('whatsapp_group'), 'https://chat.whatsapp.com/example')
         self.assertEqual(listing.get('sub_community'), 'Town Centre')
-        self.assertEqual(listing.get('opening_hours'), 'Mon-Sat 9am-5pm')
+        self.assertEqual(listing.get('opening_hours', {}).get('monday'), [
+            {'open': '09:00', 'close': '17:00'},
+        ])
+        self.assertEqual(listing.get('opening_hours', {}).get('saturday'), [
+            {'open': '09:00', 'close': '17:00'},
+        ])
         self.assertEqual(listing.get('additional_information'), 'Family-owned local business')
         self.assertEqual(listing.get('deals'), '10% off this week')
 
+    def test_instagram_label_and_handle_guidance(self):
+        form_response = self.client.get('/add')
+        self.assertIn(b'Instagram ID', form_response.data)
+        self.assertIn(b'placeholder="yourbusiness"', form_response.data)
+        self.assertIn(b'Do NOT include the full Instagram URL', form_response.data)
+
+        detail_response = self.client.get('/listing/6')
+        self.assertIn(b'href="#field-icon-instagram"', detail_response.data)
+        self.assertIn(b'thegrovecommunitymarket', detail_response.data)
+
     def test_facebook_and_google_business_profile_are_linked(self):
         self.client.post('/add', data={
+            'community': 'miltonkeynes',
             'name': 'Link Test Shop',
             'category': 'Shopping',
+            'description': 'A shop with profile links.',
             'address': '89 Market Road',
             'facebook': 'Link Test Shop',
+            'google_maps_location': 'https://maps.google.com/?q=link-test',
             'google_business_profile': 'https://maps.app.goo.gl/link-test',
         })
 
@@ -350,6 +556,8 @@ class AppTests(unittest.TestCase):
         listing = next(item for item in load_listings() if item.get('name') == 'Link Test Shop')
         detail_response = self.client.get(f"/listing/{listing['id']}")
         self.assertIn(b'https://www.facebook.com/search/top/?q=Link%20Test%20Shop', detail_response.data)
+        self.assertIn(b'field-icon-google', detail_response.data)
+        self.assertIn(b'href="https://maps.google.com/?q=link-test"', detail_response.data)
         self.assertIn(b'href="https://maps.app.goo.gl/link-test"', detail_response.data)
 
     def test_listing_detail_page_shows_full_information(self):
@@ -361,10 +569,19 @@ class AppTests(unittest.TestCase):
         self.assertIn(b'@thegrovecommunitymarket', response.data)
         self.assertIn(b'Thu-Sun 9am-4pm', response.data)
         self.assertIn(b'10% off selected stalls on market day.', response.data)
+        for icon in (
+            b'field-icon-community', b'field-icon-name', b'field-icon-description',
+            b'field-icon-category', b'field-icon-address', b'field-icon-phone',
+            b'field-icon-email', b'field-icon-website', b'field-icon-instagram',
+            b'field-icon-facebook', b'field-icon-whatsapp', b'field-icon-subcommunity',
+            b'field-icon-hours', b'field-icon-details', b'field-icon-offers',
+        ):
+            self.assertIn(icon, response.data)
 
     def test_listing_detail_page_shows_listing_image(self):
         response = self.client.get('/listing/1')
         self.assertEqual(response.status_code, 200)
+        self.assertLess(response.data.index(b'class="detail-content"'), response.data.index(b'class="detail-media"'))
         self.assertIn(b'photo-1501339847302-ac426a4a7cbb', response.data)
 
     def test_listing_can_be_edited_and_returns_to_admin_review(self):
@@ -439,7 +656,7 @@ class AppTests(unittest.TestCase):
         auth_headers = {'Authorization': 'Basic YWRtaW46Y2hhbmdlLW1l'}
         edit_page = self.client.get('/listing/1/edit?admin=1', headers=auth_headers)
         self.assertEqual(edit_page.status_code, 200)
-        self.assertIn(b'Edit listing (Admin)', edit_page.data)
+        self.assertIn(b'Edit Listing (Admin)', edit_page.data)
 
         response = self.client.post('/listing/1/edit?admin=1', data={
             'community': 'miltonkeynes',

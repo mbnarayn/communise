@@ -74,14 +74,15 @@
                   {% for label, value in [
                     ('Community', listing.community),
                     ('Subcommunity', listing.sub_community),
-                    ('Address', listing.address),
-                    ('Phone', listing.phone | phone_format),
+                    ('Full Address', listing.address),
+                    ('Phone Number', listing.phone | phone_format),
                     ('Website', listing.website),
                     ('Email', listing.email),
                     ('Instagram', listing.instagram),
                     ('Facebook', listing.facebook),
-                    ('WhatsApp group', listing.whatsapp_group),
-                    ('Opening hours', listing.opening_hours),
+                    ('WhatsApp Group Link', listing.whatsapp_group),
+                    ('Google Maps Location', listing.google_maps_location),
+                    ('Opening Hours', listing.opening_hours),
                   ] %}
                     {% if value %}
                       <div class="detail-item">
@@ -94,14 +95,14 @@
 
                   {% if listing.additional_information %}
                     <div class="detail-callout">
-                      <strong>Additional information</strong>
+                      <strong>More Details</strong>
                       <p>{{ listing.additional_information }}</p>
                     </div>
                   {% endif %}
 
                   {% if listing.deals %}
                     <div class="detail-callout accent">
-                      <strong>Deals / special promotions</strong>
+                      <strong>Promotional Offers</strong>
                       <p>{{ listing.deals }}</p>
                     </div>
                   {% endif %}

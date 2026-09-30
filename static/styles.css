@@ -403,6 +403,17 @@ nav a {
   margin-bottom: 3px;
 }
 
+.listing-location-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin-bottom: 0.35rem;
+}
+
+.listing-location-tags .tag {
+  margin: 0;
+}
+
 .featured-badge {
   display: inline-block;
   margin: 0 0 3px 0.2rem;
@@ -548,6 +559,9 @@ nav a {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
+  color: var(--text);
+  font-size: 0.69rem;
+  line-height: 1.35;
 }
 
 .details-cta {
@@ -617,8 +631,76 @@ nav a {
   line-height: 1.45;
 }
 
+.listing-form-card .field-key {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.field-marker {
+  display: inline-block;
+  padding: 0.08rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1.35;
+  vertical-align: middle;
+}
+
+.field-marker.required {
+  color: var(--primary-dark);
+  background: var(--accent);
+}
+
+.field-marker.optional {
+  color: var(--muted);
+  background: #f0f2f5;
+}
+
 .listing-form-card label {
   font-size: 0.69rem;
+}
+
+.field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+}
+
+.field-icon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.field-icon use {
+  pointer-events: none;
+}
+
+.field-icon-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.field-icon-dot {
+  fill: currentColor;
+  stroke: none;
+}
+
+#field-icon-facebook,
+#field-icon-whatsapp {
+  fill: currentColor;
+  stroke: none;
 }
 
 .listing-form-card small {
@@ -1196,7 +1278,7 @@ select {
     position: static;
     order: -1;
     width: min(100%, 220px);
-    justify-self: start;
+    justify-self: end;
   }
 
   .admin-item {

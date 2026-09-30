@@ -74,7 +74,8 @@ LISTING_FEATURES = {
     "home": {
         "category": True,
         "description": True,
-        "address": True,
+        "community": True,
+        "sub_community": True,
         "phone": False,
         "website": False,
         "usage_counter": True,
@@ -83,7 +84,8 @@ LISTING_FEATURES = {
     "community": {
         "category": True,
         "description": True,
-        "address": True,
+        "community": True,
+        "sub_community": True,
         "phone": True,
         "website": True,
         "usage_counter": True,
@@ -632,20 +634,30 @@ def add_listing():
         email = request.form.get('email', '').strip()
         instagram = request.form.get('instagram', '').strip()
         facebook = request.form.get('facebook', '').strip()
+        google_maps_location = request.form.get('google_maps_location', '').strip()
         google_business_profile = request.form.get('google_business_profile', '').strip()
         whatsapp_group = request.form.get('whatsapp_group') or request.form.get('whatsappgroup') or ''
         whatsapp_group = whatsapp_group.strip()
-        community = normalize_community(request.form.get('community') or selected_community)
+        community_value = request.form.get('community', '').strip()
+        community = normalize_community(community_value) if community_value else ''
         sub_community = request.form.get('sub_community', '').strip()
         opening_hours = parse_opening_hours(request.form)
         additional_information = request.form.get('additional_information', '').strip()
         deals = request.form.get('deals', '').strip()
         logo = request.files.get('logo')
 
-        if not name or category not in CATEGORY_OPTIONS or not address:
+        if not community or not name or category not in CATEGORY_OPTIONS or not description:
             return render_template(
                 'add_listing.html',
-            error='Please provide a business name, valid category, and address.',
+                error='Please provide a community, business name, valid category, and description.',
+                form=request.form,
+                communities=communities,
+                selected_community=community or selected_community,
+            )
+        if len(description) > 150:
+            return render_template(
+                'add_listing.html',
+                error='Description must be 150 characters or fewer.',
                 form=request.form,
                 communities=communities,
                 selected_community=community,
@@ -675,13 +687,14 @@ def add_listing():
             'id': next_id,
             'name': name,
             'category': category,
-            'description': description or 'A local spot to discover and support.',
+            'description': description,
             'address': address,
             'phone': phone,
             'website': website,
             'email': email,
             'instagram': instagram,
             'facebook': facebook,
+            'google_maps_location': google_maps_location,
             'google_business_profile': google_business_profile,
             'whatsapp_group': whatsapp_group,
             'community': community,
@@ -736,13 +749,25 @@ def edit_listing(listing_id):
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         category = request.form.get('category', '').strip()
+        description = request.form.get('description', '').strip()
         address = request.form.get('address', '').strip()
-        community = normalize_community(request.form.get('community') or selected_community)
+        community_value = request.form.get('community', '').strip()
+        community = normalize_community(community_value) if community_value else ''
 
-        if not name or category not in CATEGORY_OPTIONS or not address:
+        if not community or not name or category not in CATEGORY_OPTIONS or not description:
             return render_template(
                 'add_listing.html',
-                error='Please provide a business name, valid category, and address.',
+                error='Please provide a community, business name, valid category, and description.',
+                form=request.form,
+                listing=listing,
+                editing=True,
+                communities=communities,
+                selected_community=community or selected_community,
+            )
+        if len(description) > 150:
+            return render_template(
+                'add_listing.html',
+                error='Description must be 150 characters or fewer.',
                 form=request.form,
                 listing=listing,
                 editing=True,
@@ -753,13 +778,14 @@ def edit_listing(listing_id):
         updated_values = {
             'name': name,
             'category': category,
-            'description': request.form.get('description', '').strip() or 'A local spot to discover and support.',
+            'description': description,
             'address': address,
             'phone': format_phone_number(request.form.get('phone_number') or request.form.get('phone') or ''),
             'website': request.form.get('website', '').strip(),
             'email': request.form.get('email', '').strip(),
             'instagram': request.form.get('instagram', '').strip(),
             'facebook': request.form.get('facebook', '').strip(),
+            'google_maps_location': request.form.get('google_maps_location', '').strip(),
             'google_business_profile': request.form.get('google_business_profile', '').strip(),
             'whatsapp_group': (request.form.get('whatsapp_group') or request.form.get('whatsappgroup') or '').strip(),
             'community': community,

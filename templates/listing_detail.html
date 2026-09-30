@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
   </head>
   <body>
+    {% include "_field_icon_symbols.html" %}
     <header class="topbar">
       <div class="container nav">
         <a class="brand" href="{{ url_for('index') }}">
@@ -30,85 +31,97 @@
               <div class="detail-heading">
                 <div class="detail-meta">
                   {% if listing.community %}
-                    <p class="eyebrow">{{ community_label }}</p>
+                    <p class="eyebrow"><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-community"></use></svg>{{ community_label }}</span></p>
                   {% endif %}
-                  <div class="tag detail-category">{{ listing.category }}</div>
+                  <div class="tag detail-category"><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-category"></use></svg>{{ listing.category }}</span></div>
                 </div>
-                <h1>{{ listing.name }}</h1>
+                <h1><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-name"></use></svg>{{ listing.name }}</span></h1>
               </div>
             </div>
 
             {% if listing.description %}
-              <p class="detail-description">{{ listing.description }}</p>
+              <p class="detail-description"><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-description"></use></svg>{{ listing.description }}</span></p>
             {% endif %}
 
             <div class="detail-grid">
           {% if listing.address %}
             <div class="detail-item">
-              <strong>Address</strong>
+              <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-address"></use></svg>Full Address</span></strong>
               <p>{{ listing.address }}</p>
             </div>
           {% endif %}
 
           {% if listing.phone %}
             <div class="detail-item">
-              <strong>Phone number</strong>
+              <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-phone"></use></svg>Phone Number</span></strong>
               <p><a href="tel:{{ listing.phone | phone_link }}">{{ listing.phone | phone_format }}</a></p>
             </div>
           {% endif %}
 
           {% if listing.email %}
             <div class="detail-item">
-              <strong>Email address</strong>
+              <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-email"></use></svg>Email address</span></strong>
               <p><a href="mailto:{{ listing.email }}">{{ listing.email }}</a></p>
             </div>
           {% endif %}
 
           {% if listing.website %}
             <div class="detail-item">
-              <strong>Website</strong>
+              <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-website"></use></svg>Website</span></strong>
               <p><a href="{{ listing.website | external_url }}" target="_blank" rel="noreferrer">{{ listing.website }}</a></p>
             </div>
           {% endif %}
 
           {% if listing.instagram %}
             <div class="detail-item">
-              <strong>Instagram</strong>
-              <p><a href="https://instagram.com/{{ listing.instagram.lstrip('@') }}" target="_blank" rel="noreferrer">{{ listing.instagram }}</a></p>
+              <strong>
+                <span class="field-label">
+                  <svg class="field-icon" aria-hidden="true"><use href="#field-icon-instagram"></use></svg>
+                  Instagram
+                </span>
+              </strong>
+              <p><a href="https://instagram.com/{{ listing.instagram.lstrip('@') }}" target="_blank" rel="noopener noreferrer">{{ listing.instagram.lstrip('@') }}</a></p>
             </div>
           {% endif %}
 
           {% if listing.facebook %}
             <div class="detail-item">
-              <strong>Facebook</strong>
+              <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-facebook"></use></svg>Facebook</span></strong>
               <p><a href="{% if listing.facebook.startswith('http://') or listing.facebook.startswith('https://') %}{{ listing.facebook }}{% else %}https://www.facebook.com/search/top/?q={{ listing.facebook | urlencode }}{% endif %}" target="_blank" rel="noopener noreferrer">{{ listing.facebook }}</a></p>
+            </div>
+          {% endif %}
+
+          {% if listing.google_maps_location %}
+            <div class="detail-item">
+              <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-address"></use></svg>Google Maps Location</span></strong>
+              <p><a href="{{ listing.google_maps_location | external_url }}" target="_blank" rel="noopener noreferrer">{{ listing.google_maps_location }}</a></p>
             </div>
           {% endif %}
 
           {% if listing.google_business_profile %}
             <div class="detail-item">
-              <strong>Google Business Profile</strong>
+              <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-google"></use></svg>Google Business Profile</span></strong>
               <p><a href="{{ listing.google_business_profile | external_url }}" target="_blank" rel="noopener noreferrer">{{ listing.google_business_profile }}</a></p>
             </div>
           {% endif %}
 
           {% if listing.whatsapp_group %}
             <div class="detail-item">
-              <strong>WhatsApp group</strong>
+              <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-whatsapp"></use></svg>WhatsApp Group Link</span></strong>
               <p><a href="{{ listing.whatsapp_group }}" target="_blank" rel="noreferrer">Open WhatsApp group</a></p>
             </div>
           {% endif %}
 
           {% if listing.sub_community %}
             <div class="detail-item">
-              <strong>Subcommunity</strong>
+              <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-subcommunity"></use></svg>Subcommunity</span></strong>
               <p>{{ listing.sub_community }}</p>
             </div>
           {% endif %}
 
           {% if listing.opening_hours %}
             <div class="detail-item">
-              <strong>Opening hours</strong>
+              <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-hours"></use></svg>Opening Hours</span></strong>
               {% if listing.opening_hours is mapping %}
                 <div class="hours-display">
                   {% for day, periods in listing.opening_hours.items() %}
@@ -127,14 +140,14 @@
 
             {% if listing.additional_information %}
               <div class="detail-callout">
-                <strong>Additional information</strong>
+                <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-details"></use></svg>More Details</span></strong>
                 <p>{{ listing.additional_information }}</p>
               </div>
             {% endif %}
 
             {% if listing.deals %}
               <div class="detail-callout accent">
-                <strong>Deals / special promotions</strong>
+                <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-offers"></use></svg>Promotional Offers</span></strong>
                 <p>{{ listing.deals }}</p>
               </div>
             {% endif %}
@@ -148,6 +161,7 @@
                 </form>
               </div>
             </div>
+
           </div>
 
           {% if listing.logo_url or listing.image %}

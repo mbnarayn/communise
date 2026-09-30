@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
   </head>
   <body>
+    {% include "_field_icon_symbols.html" %}
     <header class="topbar">
       <div class="container nav">
         <a class="brand" href="{{ url_for('index') }}">
@@ -26,6 +27,7 @@
       <section class="form-card listing-form-card">
         <h1>{% if editing and admin_mode %}Edit Listing (Admin){% elif editing %}Edit Listing{% else %}Add a Local Listing{% endif %}</h1>
         <p>{% if editing and admin_mode %}Update this listing directly.{% elif editing %}Update the listing details and submit them for review.{% else %}Share a shop, service, or amenity with the community.{% endif %}</p>
+        <p class="field-key"><span class="field-marker required">Required</span> Complete these fields. <span class="field-marker optional">Optional</span> These fields can be left blank.</p>
 
         {% if error %}
           <div class="error-banner">{{ error }}</div>
@@ -33,8 +35,8 @@
 
         <form method="POST" action="{{ url_for('edit_listing', listing_id=listing.id, admin='1') if editing and admin_mode else url_for('edit_listing', listing_id=listing.id) if editing else url_for('add_listing') }}" enctype="multipart/form-data" {% if not admin_mode %}onsubmit="return confirm('{% if editing %}Your changes will only be visible after a Communise Admin reviews and approves them. In case of any issues or delays, please email communise.xyz@gmail.com. Submit for review?{% else %}Your listing will only be visible after a Communise Admin reviews and approves it. In case of any issues or delays, please email communise.xyz@gmail.com. Submit listing?{% endif %}');"{% endif %}>
           <label>
-            Community
-            <select name="community">
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-community"></use></svg>Community <span class="field-marker required">Required</span></span>
+            <select name="community" required>
               {% for community in communities %}
                 <option value="{{ community.slug }}" {% if community.slug == selected_community %}selected{% endif %}>
                   {{ community.label }}
@@ -44,24 +46,18 @@
           </label>
 
           <label>
-            Subcommunity
-            <input type="text" name="sub_community" value="{{ form.sub_community if form and form.sub_community else '' }}" placeholder="e.g. Whitehouse, Broughton" />
-            <small>The estate or neighbourhood within the larger community area, such as Whitehouse or Broughton.</small>
-          </label>
-
-          <label>
-            Name
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-name"></use></svg>Name <span class="field-marker required">Required</span></span>
             <input type="text" name="name" value="{{ form.name if form and form.name else '' }}" required />
           </label>
 
           <label>
-            Logo
-            <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" />
-            <small>{% if editing and listing.logo_url %}Leave empty to keep the current logo. {% endif %}PNG, JPEG, or WebP. Maximum 2 MB.</small>
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-description"></use></svg>Description <span class="field-marker required">Required</span></span>
+            <textarea name="description" rows="4" maxlength="150" placeholder="Tell people what makes this place special" required>{{ form.description if form and form.description else '' }}</textarea>
+            <small id="description-character-count" aria-live="polite">{{ form.description|length if form and form.description else 0 }} / 150 characters</small>
           </label>
 
           <label>
-            Category
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-category"></use></svg>Category <span class="field-marker required">Required</span></span>
             <select name="category" required>
               <option value="">Choose a category</option>
               {% for category in ['Services', 'Lifestyle', 'Food', 'Shopping', 'Recreation', 'Education', 'Other'] %}
@@ -101,52 +97,73 @@
           </div>
 
           <label>
-            Description
-            <textarea name="description" rows="4" placeholder="Tell people what makes this place special">{{ form.description if form and form.description else '' }}</textarea>
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-logo"></use></svg>Logo <span class="field-marker optional">Optional</span></span>
+            <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" />
+            <small>{% if editing and listing.logo_url %}Leave empty to keep the current logo. {% endif %}PNG, JPEG, or WebP. Maximum 2 MB.</small>
           </label>
 
           <label>
-            Address
-            <input type="text" name="address" value="{{ form.address if form and form.address else '' }}" required />
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-details"></use></svg>More Details <span class="field-marker optional">Optional</span></span>
+            <textarea name="additional_information" rows="3" placeholder="Anything else people should know">{{ form.additional_information if form and form.additional_information else '' }}</textarea>
           </label>
 
           <label>
-            Phone number
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-phone"></use></svg>Phone Number <span class="field-marker optional">Optional</span></span>
             <input type="tel" name="phone_number" value="{{ ((form.get('phone_number') or form.get('phone', '')) if form else listing.phone if listing else '') | phone_format }}" placeholder="01234 567890" inputmode="numeric" pattern="[0-9]{5} ?[0-9]{6}" />
           </label>
 
           <label>
-            Website
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-subcommunity"></use></svg>Subcommunity <span class="field-marker optional">Optional</span></span>
+            <input type="text" name="sub_community" value="{{ form.sub_community if form and form.sub_community else '' }}" placeholder="e.g. Whitehouse, Broughton" />
+            <small>The estate or neighbourhood within the larger community area, such as Whitehouse or Broughton.</small>
+          </label>
+
+          <label>
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-address"></use></svg>Full Address <span class="field-marker optional">Optional</span></span>
+            <input type="text" name="address" value="{{ form.address if form and form.address else '' }}" placeholder="20 Bobbin Road, Whitehouse, Milton Keynes, MK8 1EP" />
+          </label>
+
+          <label>
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-website"></use></svg>Website <span class="field-marker optional">Optional</span></span>
             <input type="text" name="website" value="{{ form.website if form and form.website else '' }}" placeholder="www.example.com" />
           </label>
 
           <label>
-            Email address
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-email"></use></svg>Email address <span class="field-marker optional">Optional</span></span>
             <input type="email" name="email" value="{{ form.email if form and form.email else '' }}" placeholder="hello@example.com" />
           </label>
 
           <label>
-            Instagram
-            <input type="text" name="instagram" value="{{ form.instagram if form and form.instagram else '' }}" placeholder="@yourbusiness" />
+            <span class="field-label">
+              <svg class="field-icon" aria-hidden="true"><use href="#field-icon-instagram"></use></svg>
+              Instagram ID <span class="field-marker optional">Optional</span>
+            </span>
+            <input type="text" name="instagram" value="{{ form.instagram.lstrip('@') if form and form.instagram else '' }}" placeholder="yourbusiness" />
+            <small>Enter the Instagram username only. Do NOT include the full Instagram URL.</small>
           </label>
 
           <label>
-            Facebook
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-whatsapp"></use></svg>WhatsApp Group Link <span class="field-marker optional">Optional</span></span>
+            <input type="url" name="whatsapp_group" value="{{ form.whatsapp_group if form and form.whatsapp_group else '' }}" placeholder="https://chat.whatsapp.com/..." />
+          </label>
+
+          <label>
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-facebook"></use></svg>Facebook <span class="field-marker optional">Optional</span></span>
             <input type="text" name="facebook" value="{{ form.facebook if form and form.facebook else '' }}" placeholder="https://www.facebook.com/your-page" />
           </label>
 
           <label>
-            Google Business Profile
-            <input type="url" name="google_business_profile" value="{{ form.google_business_profile if form and form.google_business_profile else '' }}" placeholder="https://maps.app.goo.gl/..." />
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-address"></use></svg>Google Maps Location <span class="field-marker optional">Optional</span></span>
+            <input type="url" name="google_maps_location" value="{{ form.google_maps_location if form and form.google_maps_location else '' }}" placeholder="https://maps.google.com/..." />
           </label>
 
           <label>
-            WhatsApp group link
-            <input type="url" name="whatsapp_group" value="{{ form.whatsapp_group if form and form.whatsapp_group else '' }}" placeholder="https://chat.whatsapp.com/..." />
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-google"></use></svg>Google Business Profile <span class="field-marker optional">Optional</span></span>
+            <input type="url" name="google_business_profile" value="{{ form.google_business_profile if form and form.google_business_profile else '' }}" placeholder="https://share.google/..." />
           </label>
 
           <fieldset class="hours-editor">
-            <legend>Opening hours</legend>
+            <legend><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-hours"></use></svg>Opening Hours <span class="field-marker optional">Optional</span></span></legend>
             <small class="hours-helper">Leave a day blank if you are closed. Use the second time pair for split hours, such as a lunch break. Use the clock icon in each box to select a time.</small>
             {% if form and form.opening_hours is string and form.opening_hours %}
               <small>Current hours: {{ form.opening_hours }}. Add daily hours below to replace them.</small>
@@ -166,12 +183,7 @@
           </fieldset>
 
           <label>
-            Additional information
-            <textarea name="additional_information" rows="3" placeholder="Anything else people should know">{{ form.additional_information if form and form.additional_information else '' }}</textarea>
-          </label>
-
-          <label>
-            Deals / special promotions
+            <span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-offers"></use></svg>Promotional Offers <span class="field-marker optional">Optional</span></span>
             <textarea name="deals" rows="3" placeholder="Add current offers or promotions">{{ form.deals if form and form.deals else '' }}</textarea>
           </label>
 
@@ -193,6 +205,16 @@
       </section>
     </main>
     <script>
+      const descriptionInput = document.querySelector('textarea[name="description"]');
+      const descriptionCharacterCount = document.getElementById('description-character-count');
+      if (descriptionInput && descriptionCharacterCount) {
+        const updateDescriptionCharacterCount = () => {
+          descriptionCharacterCount.textContent = `${descriptionInput.value.length} / ${descriptionInput.maxLength} characters`;
+        };
+        descriptionInput.addEventListener('input', updateDescriptionCharacterCount);
+        updateDescriptionCharacterCount();
+      }
+
       const phoneInput = document.querySelector('input[name="phone_number"]');
       if (phoneInput) {
         phoneInput.addEventListener('input', () => {
