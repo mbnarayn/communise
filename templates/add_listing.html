@@ -232,8 +232,13 @@
       const descriptionInput = document.querySelector('textarea[name="description"]');
       const descriptionCharacterCount = document.getElementById('description-character-count');
       if (descriptionInput && descriptionCharacterCount) {
+        const resizeDescription = () => {
+          descriptionInput.style.height = 'auto';
+          descriptionInput.style.height = `${descriptionInput.scrollHeight}px`;
+        };
         const updateDescriptionCharacterCount = () => {
           descriptionCharacterCount.textContent = `${descriptionInput.value.length} / ${descriptionInput.maxLength} characters`;
+          resizeDescription();
         };
         descriptionInput.addEventListener('input', updateDescriptionCharacterCount);
         updateDescriptionCharacterCount();

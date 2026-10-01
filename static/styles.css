@@ -1082,6 +1082,12 @@ textarea {
   resize: vertical;
 }
 
+.listing-form-card textarea[name="description"] {
+  min-height: 8rem;
+  overflow-y: hidden;
+  resize: none;
+}
+
 select {
   width: 100%;
   min-width: 0;

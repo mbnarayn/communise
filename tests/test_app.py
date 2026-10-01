@@ -419,6 +419,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(optional_field_positions, sorted(optional_field_positions))
         self.assertIn(b'id="description-character-count" aria-live="polite">0 / 150 characters', response.data)
         self.assertIn(b"descriptionInput.addEventListener('input', updateDescriptionCharacterCount)", response.data)
+        self.assertIn(b'descriptionInput.style.height = `${descriptionInput.scrollHeight}px`', response.data)
 
         edit_response = self.client.get('/listing/1/edit')
         description_length = len(get_seed_data()[0]['description'])
