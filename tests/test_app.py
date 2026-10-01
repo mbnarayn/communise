@@ -35,9 +35,10 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Communise', response.data)
         self.assertIn(b'<nav class="site-navigation">', response.data)
-        self.assertIn(b'class="events-nav-link" href="/events">Upcoming Events</a>', response.data)
-        self.assertLess(response.data.index(b'>Woking</a>'), response.data.index(b'class="events-nav-link"'))
-        self.assertIn(b'class="hero-about-link" href="/about">More About Communise</a>', response.data)
+        header = response.data.split(b'</header>', 1)[0]
+        self.assertNotIn(b'Upcoming Events', header)
+        self.assertIn(b'class="about-nav-link" href="/about">About Communise</a>', header)
+        self.assertNotIn(b'class="hero-about-link"', response.data)
         self.assertIn(b'class="install-communise-button" data-install-communise', response.data)
         self.assertNotIn(b'data-install-communise hidden', response.data)
         self.assertIn(b'/static/android-logo.svg', response.data)
@@ -52,6 +53,18 @@ class AppTests(unittest.TestCase):
         )
         self.assertLess(response.data.index(b'>Add Your Listing</a>'), response.data.index(b'data-install-communise'))
         self.assertIn(b'<div class="hero-install-row">', response.data)
+
+    def test_home_hero_events_button_is_centered_below_primary_actions(self):
+        response = self.client.get('/')
+        self.assertIn(
+            b'class="hero-cta hero-event-cta" href="/events">View Upcoming Events</a>',
+            response.data,
+        )
+        event_description = b'Find local events, activities, and things to do in your community.'
+        self.assertIn(b'class="hero-events-description">' + event_description, response.data)
+        self.assertLess(response.data.index(event_description), response.data.index(b'class="hero-event-action"'))
+        self.assertLess(response.data.index(b'class="hero-actions"'), response.data.index(event_description))
+        self.assertNotIn(b'class="hero-event-preview"', response.data)
 
     def test_listing_count_shows_current_page_and_filtered_total(self):
         base_listing = dict(get_seed_data()[0])
@@ -93,7 +106,7 @@ class AppTests(unittest.TestCase):
                             self.assertNotIn(b'>Next</a>', top_controls)
                             self.assertNotIn(b'>Next</a>', bottom_controls)
 
-    def test_upcoming_events_button_follows_community_links_on_public_pages(self):
+    def test_upcoming_events_link_is_not_in_page_headers(self):
         for path in ('/', '/mk', '/events', '/events/add', '/add', '/listing/1', '/about', '/terms'):
             with self.subTest(path=path):
                 response = self.client.get(path)
@@ -101,11 +114,11 @@ class AppTests(unittest.TestCase):
                 header = response.data.split(b'</header>', 1)[0]
                 self.assertIn(b'<span class="site-nav-links">', header)
                 self.assertLess(header.index(b'>Woking</a>'), header.index(b'</span>'))
-                self.assertLess(header.index(b'</span>'), header.index(b'class="events-nav-link"'))
-                self.assertIn(b'>Upcoming Events</a>', header)
+                self.assertNotIn(b'class="events-nav-link"', header)
+                self.assertIn(b'class="about-nav-link" href="/about">About Communise</a>', header)
 
         admin = self.client.get('/admin', headers={'Authorization': 'Basic YWRtaW46Y2hhbmdlLW1l'})
-        self.assertIn(b'class="events-nav-link" href="/events">Upcoming Events</a>', admin.data)
+        self.assertNotIn(b'class="events-nav-link"', admin.data.split(b'</header>', 1)[0])
 
     def test_pwa_metadata_and_icons_are_available(self):
         page_paths = ('/', '/about', '/terms', '/add', '/listing/1', '/mk')
@@ -128,10 +141,11 @@ class AppTests(unittest.TestCase):
             self.assertTrue(icon_response.data.startswith(b'\x89PNG\r\n\x1a\n'))
             icon_response.close()
 
-    def test_community_hero_about_link_uses_title_case(self):
+    def test_about_link_uses_title_case_in_header(self):
         response = self.client.get('/mk')
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'class="hero-about-link" href="/about">More About Communise</a>', response.data)
+        header = response.data.split(b'</header>', 1)[0]
+        self.assertIn(b'class="about-nav-link" href="/about">About Communise</a>', header)
 
     def test_about_page_includes_purpose_sections_before_contact(self):
         response = self.client.get('/about')
@@ -176,8 +190,16 @@ class AppTests(unittest.TestCase):
                 self.assertIn(b'data-install-communise', response.data)
                 self.assertIn(b'<div class="container site-footer-install">', response.data)
                 footer_html = response.data.split(b'<footer class="site-footer">', 1)[1]
-                self.assertLess(
+                footer_link_positions = [
                     footer_html.index(b'<a href="/add">Add Your Listing</a>'),
+                    footer_html.index(b'<a href="/events">Upcoming Events</a>'),
+                    footer_html.index(b'<a href="/events/add">Add an Event</a>'),
+                    footer_html.index(b'<a href="/about">More About Communise</a>'),
+                    footer_html.index(b'<a href="/terms">Terms of Use</a>'),
+                ]
+                self.assertEqual(footer_link_positions, sorted(footer_link_positions))
+                self.assertLess(
+                    footer_link_positions[0],
                     footer_html.index(b'data-install-communise'),
                 )
 

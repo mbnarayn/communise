@@ -658,6 +658,19 @@ def store_logo(upload, listing_id):
     return url_for("static", filename=f"uploads/logos/{blob_name}")
 
 
+def get_upcoming_event_occurrences(events):
+    today = date.today().isoformat()
+    upcoming = [
+        {**event, **occurrence}
+        for event in events
+        if event.get('approved')
+        for occurrence in get_event_schedule(event)
+        if occurrence['date'] >= today
+    ]
+    upcoming.sort(key=lambda event: (event['date'], event['start_time'], event['name']))
+    return upcoming
+
+
 @app.route('/')
 def index():
     query = request.args.get('q', '').strip()
@@ -709,13 +722,7 @@ def events_page():
     query = request.args.get('q', '').strip()
     if community != 'all' and community not in EVENT_COMMUNITY_LABELS:
         return render_template('404.html'), 404
-    upcoming = [
-        {**event, **occurrence}
-        for event in load_events(community if community != 'all' else None)
-        if event.get('approved')
-        for occurrence in get_event_schedule(event)
-        if occurrence['date'] >= date.today().isoformat()
-    ]
+    upcoming = get_upcoming_event_occurrences(load_events(community if community != 'all' else None))
     if query:
         needle = query.casefold()
         upcoming = [
@@ -724,7 +731,6 @@ def events_page():
             or needle in EVENT_COMMUNITY_LABELS.get(event['community'], event['community']).casefold()
             or needle in event['date'] or needle in uk_date(event['date'])
         ]
-    upcoming.sort(key=lambda event: (event['date'], event['start_time'], event['name']))
     paginated, page, total_pages = paginate_listings(upcoming, request.args.get('page', 1))
     return render_template(
         'events.html', events=paginated, selected_community=community,

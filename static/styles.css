@@ -225,30 +225,8 @@ nav a {
   gap: 1.2rem;
 }
 
-.nav .events-nav-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 29px;
-  padding: 0.3rem 0.85rem;
-  border: 1px solid #12694f;
-  border-radius: 6px;
-  background: #167a5c;
-  color: #fff;
-  font-size: 0.76rem;
-  font-weight: 700;
-  line-height: 1.2;
-  text-decoration: none;
-}
-
-.nav .events-nav-link:hover {
-  background: #105a45;
-  color: #fff;
-}
-
-.nav .events-nav-link:focus-visible {
-  outline: 3px solid #d97706;
-  outline-offset: 2px;
+.nav .about-nav-link {
+  color: #15803d;
 }
 
 .hero {
@@ -291,14 +269,11 @@ nav a {
   font-size: 0.75rem;
 }
 
-.hero-about-link {
-  color: #15803d;
-  font: inherit;
-  font-weight: 800;
-}
-
-.hero-about-link:hover {
-  color: #166534;
+.hero-events-description {
+  margin: 0.5rem 0 0;
+  font-size: clamp(0.85rem, 1.2vw, 1rem);
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .hero-tagline {
@@ -367,6 +342,21 @@ nav a {
 
 .hero-cta:hover {
   background: #b45309;
+}
+
+.hero-event-cta {
+  border: 1px solid #12694f;
+  background: #167a5c;
+}
+
+.hero-event-cta:hover {
+  background: #105a45;
+}
+
+.hero-event-action {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.5rem;
 }
 
 .primary-btn,
@@ -1739,6 +1729,10 @@ select {
     font-size: 1.05rem;
   }
 
+  .hero-events-description {
+    font-size: 1.05rem;
+  }
+
   .hero .subtitle {
     font-size: 0.82rem;
   }
@@ -2000,11 +1994,6 @@ select {
   .nav > .site-navigation {
     display: flex;
     width: 100%;
-  }
-
-  .nav > .site-navigation > .events-nav-link,
-  .nav > .admin-home-nav > .events-nav-link {
-    font-size: 0.76rem;
   }
 
   .site-nav-links {
