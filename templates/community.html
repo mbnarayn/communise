@@ -88,6 +88,20 @@
 
       {% set feature_flags = listing_features or {} %}
       {% if listings %}
+        <div class="listing-pagination-row listing-top-pagination">
+          <p class="listing-count">Showing {{ listings | length }} of {{ total_listings }} listings</p>
+          {% if total_pages > 1 %}
+            <nav class="pagination" aria-label="Listings pages">
+              {% if page > 1 %}
+                <a class="tab" href="{{ url_for(pagination_endpoint, q=query, category=category, page=page - 1) }}">Previous</a>
+              {% endif %}
+              <span class="pagination-status">Page {{ page }} of {{ total_pages }}</span>
+              {% if page < total_pages %}
+                <a class="tab" href="{{ url_for(pagination_endpoint, q=query, category=category, page=page + 1) }}">Next</a>
+              {% endif %}
+            </nav>
+          {% endif %}
+        </div>
         <section class="listing-grid" id="listings">
           {% for listing in listings %}
             <article
@@ -153,17 +167,20 @@
             </article>
           {% endfor %}
         </section>
-        {% if total_pages > 1 %}
-          <nav class="pagination" aria-label="Listings pages">
-            {% if page > 1 %}
-              <a class="tab" href="{{ url_for(pagination_endpoint, q=query, category=category, page=page - 1) }}">Previous</a>
-            {% endif %}
-            <span class="pagination-status">Page {{ page }} of {{ total_pages }}</span>
-            {% if page < total_pages %}
-              <a class="tab" href="{{ url_for(pagination_endpoint, q=query, category=category, page=page + 1) }}">Next</a>
-            {% endif %}
-          </nav>
-        {% endif %}
+        <div class="listing-pagination-row listing-bottom-pagination">
+          <p class="listing-count">Showing {{ listings | length }} of {{ total_listings }} listings</p>
+          {% if total_pages > 1 %}
+            <nav class="pagination" aria-label="Listings pages">
+              {% if page > 1 %}
+                <a class="tab" href="{{ url_for(pagination_endpoint, q=query, category=category, page=page - 1) }}">Previous</a>
+              {% endif %}
+              <span class="pagination-status">Page {{ page }} of {{ total_pages }}</span>
+              {% if page < total_pages %}
+                <a class="tab" href="{{ url_for(pagination_endpoint, q=query, category=category, page=page + 1) }}">Next</a>
+              {% endif %}
+            </nav>
+          {% endif %}
+        </div>
       {% else %}
         <p class="empty-state">No listings yet. Be the first to add one.</p>
       {% endif %}

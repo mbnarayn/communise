@@ -53,6 +53,46 @@ class AppTests(unittest.TestCase):
         self.assertLess(response.data.index(b'>Add Your Listing</a>'), response.data.index(b'data-install-communise'))
         self.assertIn(b'<div class="hero-install-row">', response.data)
 
+    def test_listing_count_shows_current_page_and_filtered_total(self):
+        base_listing = dict(get_seed_data()[0])
+        listings = [
+            {**base_listing, 'id': str(index + 1), 'name': f'Featured Listing {index + 1}'}
+            for index in range(23)
+        ]
+
+        with patch('app.load_listings', return_value=listings):
+            for path in ('/', '/mk'):
+                for page, visible_count in ((1, 16), (2, 7)):
+                    with self.subTest(path=path, page=page):
+                        response = self.client.get(f'{path}?page={page}')
+                        self.assertEqual(response.status_code, 200)
+                        self.assertIn(
+                            f'Showing {visible_count} of 23 listings'.encode(),
+                            response.data,
+                        )
+                        top_controls = response.data.split(
+                            b'<div class="listing-pagination-row listing-top-pagination">', 1
+                        )[1].split(b'</div>', 1)[0]
+                        self.assertLess(
+                            response.data.index(b'class="listing-pagination-row listing-top-pagination"'),
+                            response.data.index(b'<section class="listing-grid"'),
+                        )
+                        bottom_controls = response.data.split(
+                            b'<div class="listing-pagination-row listing-bottom-pagination">', 1
+                        )[1].split(b'</div>', 1)[0]
+                        self.assertIn(f'Page {page} of 2'.encode(), top_controls)
+                        self.assertIn(f'Page {page} of 2'.encode(), bottom_controls)
+                        self.assertEqual(
+                            response.data.count(f'Showing {visible_count} of 23 listings'.encode()),
+                            2,
+                        )
+                        if page < 2:
+                            self.assertIn(b'>Next</a>', top_controls)
+                            self.assertIn(b'>Next</a>', bottom_controls)
+                        else:
+                            self.assertNotIn(b'>Next</a>', top_controls)
+                            self.assertNotIn(b'>Next</a>', bottom_controls)
+
     def test_upcoming_events_button_follows_community_links_on_public_pages(self):
         for path in ('/', '/mk', '/events', '/events/add', '/add', '/listing/1', '/about', '/terms'):
             with self.subTest(path=path):
@@ -946,6 +986,39 @@ class EventTests(unittest.TestCase):
         self.assertLess(response.data.index(b'<div class="event-add-action">'), response.data.index(b'Upcoming Events by Date'))
         self.assertLess(response.data.index(b'aria-label="Filter events by location"'), response.data.index(b'Upcoming Events by Date'))
         self.assertLess(response.data.index(b'Upcoming Events by Date'), response.data.index(b'id="events-list"') if b'id="events-list"' in response.data else response.data.index(b'No upcoming events'))
+
+    def test_events_are_paginated_with_counts_and_preserve_filters(self):
+        events = [
+            {
+                'id': str(index),
+                'name': f'Community Event {index:02}',
+                'description': 'A local event.',
+                'community': 'buckingham',
+                'approved': True,
+                'schedule': [{
+                    'date': (date.today() + timedelta(days=index + 1)).isoformat(),
+                    'start_time': '10:00',
+                    'end_time': '11:00',
+                }],
+            }
+            for index in range(17)
+        ]
+
+        with patch('app.load_events', return_value=events):
+            first_page = self.client.get('/events?community=buckingham&q=community')
+            self.assertEqual(first_page.data.count(b'<article class="card event-card">'), 16)
+            self.assertEqual(first_page.data.count(b'Showing 16 of 17 events'), 2)
+            self.assertIn(b'Page 1 of 2', first_page.data)
+            self.assertIn(
+                b'href="/events?community=buckingham&amp;q=community&amp;page=2">Next</a>',
+                first_page.data,
+            )
+
+            last_page = self.client.get('/events?community=buckingham&q=community&page=2')
+            self.assertEqual(last_page.data.count(b'<article class="card event-card">'), 1)
+            self.assertEqual(last_page.data.count(b'Showing 1 of 17 events'), 2)
+            self.assertIn(b'Page 2 of 2', last_page.data)
+            self.assertNotIn(b'>Next</a>', last_page.data)
 
     def test_events_require_admin_approval_and_filter_by_community(self):
         from app import load_events

@@ -49,9 +49,24 @@
         <h1><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-hours"></use></svg>Upcoming Events by Date</span></h1>
       </div>
       {% if events %}
+        <div class="listing-pagination-row listing-top-pagination">
+          <p class="listing-count">Showing {{ events | length }} of {{ total_events }} events</p>
+          {% if total_pages > 1 %}
+            <nav class="pagination" aria-label="Event pages">
+              {% if page > 1 %}
+                <a class="tab" href="{{ url_for('events_page', community=selected_community, q=query, page=page - 1) }}">Previous</a>
+              {% endif %}
+              <span class="pagination-status">Page {{ page }} of {{ total_pages }}</span>
+              {% if page < total_pages %}
+                <a class="tab" href="{{ url_for('events_page', community=selected_community, q=query, page=page + 1) }}">Next</a>
+              {% endif %}
+            </nav>
+          {% endif %}
+        </div>
         <section class="listing-grid events-grid" id="events-list" aria-label="Upcoming events in date order">
           {% for event in events %}
             <article class="card event-card">
+              <a class="event-card-link" href="{{ url_for('event_detail', event_id=event_slugs[event.id | string]) }}" aria-label="View details for {{ event.name }}"></a>
               <div class="listing-card-title"><h3>{{ event.name }}</h3></div>
               <p>{{ event.description }}</p>
               <p class="event-card-when"><time datetime="{{ event.date }}">{{ event.date | uk_date }}</time> <span>{{ event.start_time }}{% if event.end_time %} - {{ event.end_time }}{% endif %}</span></p>
@@ -59,7 +74,7 @@
                 <span class="tag">{{ communities | selectattr('slug', 'equalto', event.community) | map(attribute='label') | first | default(event.community, true) }}</span>
               </div>
               <div class="card-actions event-card-actions">
-                <a class="details-cta" href="{{ url_for('event_detail', event_id=event_slugs[event.id | string]) }}">View details <span aria-hidden="true">&#8594;</span></a>
+                <span class="details-cta" aria-hidden="true">View details <span aria-hidden="true">&#8594;</span></span>
                 {% set attendance_source = 'tile' %}
                 {% include '_event_attendance.html' %}
                 <span class="usage-badge">Viewed {{ event.usage_count | default(0) }} {% if event.usage_count | default(0) == 1 %}time{% else %}times{% endif %}</span>
@@ -67,6 +82,20 @@
             </article>
           {% endfor %}
         </section>
+        <div class="listing-pagination-row listing-bottom-pagination">
+          <p class="listing-count">Showing {{ events | length }} of {{ total_events }} events</p>
+          {% if total_pages > 1 %}
+            <nav class="pagination" aria-label="Event pages">
+              {% if page > 1 %}
+                <a class="tab" href="{{ url_for('events_page', community=selected_community, q=query, page=page - 1) }}">Previous</a>
+              {% endif %}
+              <span class="pagination-status">Page {{ page }} of {{ total_pages }}</span>
+              {% if page < total_pages %}
+                <a class="tab" href="{{ url_for('events_page', community=selected_community, q=query, page=page + 1) }}">Next</a>
+              {% endif %}
+            </nav>
+          {% endif %}
+        </div>
       {% else %}
         <p class="empty-state">{% if query %}No upcoming events match your search.{% else %}No upcoming events in this area yet.{% endif %}</p>
       {% endif %}

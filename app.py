@@ -688,6 +688,7 @@ def index():
         listing_features=get_listing_feature_config('home'),
         page=page,
         total_pages=total_pages,
+        total_listings=len(filtered),
         pagination_endpoint='index',
     )
 
@@ -724,10 +725,12 @@ def events_page():
             or needle in event['date'] or needle in uk_date(event['date'])
         ]
     upcoming.sort(key=lambda event: (event['date'], event['start_time'], event['name']))
+    paginated, page, total_pages = paginate_listings(upcoming, request.args.get('page', 1))
     return render_template(
-        'events.html', events=upcoming, selected_community=community,
+        'events.html', events=paginated, selected_community=community,
         communities=get_event_community_options(), query=query,
         event_slugs=get_event_slugs(load_events()),
+        page=page, total_pages=total_pages, total_events=len(upcoming),
     )
 
 
@@ -989,6 +992,7 @@ def community_page(community_slug=None):
         listing_features=get_listing_feature_config('community'),
         page=page,
         total_pages=total_pages,
+        total_listings=len(filtered),
         pagination_endpoint=request.endpoint,
     )
 

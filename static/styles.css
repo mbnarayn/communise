@@ -526,18 +526,61 @@ nav a {
   padding-bottom: 50px;
 }
 
+#listings,
+#events-list {
+  padding-bottom: 0;
+}
+
 .pagination {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  margin: -28px 0 40px;
+  margin: 0 0 40px;
+}
+
+.listing-count {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin: -28px 0 0.75rem;
+  text-align: center;
 }
 
 .pagination-status {
   color: var(--muted);
   font-size: 0.85rem;
   font-weight: 700;
+}
+
+.listing-pagination-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.listing-top-pagination {
+  margin-bottom: 0.75rem;
+}
+
+.listing-bottom-pagination {
+  margin: 0.75rem 0 40px;
+}
+
+.listing-pagination-row .listing-count,
+.listing-pagination-row .pagination {
+  margin: 0;
+}
+
+.listing-pagination-row .listing-count {
+  text-align: left;
+}
+
+@media (max-width: 420px) {
+  .listing-pagination-row {
+    flex-wrap: wrap;
+  }
 }
 
 .card {
@@ -1377,9 +1420,22 @@ select {
 }
 
 .event-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+.event-card-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.event-card-link:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
 }
 
 .event-card .event-card-when {
@@ -1417,6 +1473,8 @@ select {
 }
 
 .event-card-actions .event-attendance {
+  position: relative;
+  z-index: 2;
   flex-wrap: nowrap;
   gap: 0.2rem;
   margin: 0;
