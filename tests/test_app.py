@@ -60,6 +60,7 @@ class AppTests(unittest.TestCase):
             b'class="hero-cta hero-event-cta" href="/events">View Upcoming Events</a>',
             response.data,
         )
+        self.assertNotIn(b'Browse Local Deals', response.data)
         event_description = b'Find local events, activities, and things to do in your community.'
         self.assertIn(b'class="hero-events-description">' + event_description, response.data)
         self.assertLess(response.data.index(event_description), response.data.index(b'class="hero-event-action"'))
