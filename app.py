@@ -512,7 +512,7 @@ def filter_listings(
                 item for item in filtered
                 if any(
                     needle in str(item.get(field, '')).lower()
-                    for field in ('name', 'category', 'description', 'address', 'phone', 'website')
+                    for field in ('name', 'category', 'description', 'address', 'phone', 'website', 'additional_information')
                 )
             ]
 

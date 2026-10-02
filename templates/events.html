@@ -25,20 +25,10 @@
       </div>
     </header>
     <main class="container events-page">
-      <div class="event-add-action">
-        <a class="hero-cta" href="{{ url_for('add_event') }}">Add an Event</a>
-      </div>
+      {% include "_hero.html" %}
       {% if request.args.get('submitted') %}
         <p class="event-notice" role="status">Your event has been submitted for admin review.</p>
       {% endif %}
-      <form class="search-form hero-search events-search" method="GET" action="{{ url_for('events_page') }}">
-        {% if selected_community != 'all' %}<input type="hidden" name="community" value="{{ selected_community }}" />{% endif %}
-        <input type="search" name="q" value="{{ query }}" placeholder="Search Events" aria-label="Search events" />
-        <button type="submit" class="secondary-btn">Search</button>
-        {% if query %}
-          <a class="clear-search" href="{{ url_for('events_page', community=selected_community) if selected_community != 'all' else url_for('events_page') }}">Clear</a>
-        {% endif %}
-      </form>
       <nav class="community-tabs" aria-label="Filter events by location">
         <a class="tab {% if selected_community == 'all' %}active{% endif %}" href="{{ url_for('events_page', q=query) if query else url_for('events_page') }}">All Areas</a>
         {% for community in communities %}

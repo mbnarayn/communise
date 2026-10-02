@@ -979,6 +979,23 @@ class AppTests(unittest.TestCase):
         self.assertIn(b'Oak Pharmacy', response.data)
         self.assertNotIn(b'Maple Cafe', response.data)
 
+    def test_search_matches_more_details_on_home_and_community_pages(self):
+        matching = {
+            **get_seed_data()[0],
+            'additional_information': 'Pottery workshops available on request.',
+        }
+        pending = {**matching, 'id': 'pending', 'name': 'Pending Workshop', 'approved': False}
+        unrelated = {**matching, 'id': 'unrelated', 'name': 'Other Shop', 'additional_information': ''}
+        with patch('app.load_listings', return_value=[matching, pending, unrelated]):
+            for path in ('/', '/mk'):
+                with self.subTest(path=path):
+                    response = self.client.get(f'{path}?q=PoTtErY')
+                    self.assertEqual(response.status_code, 200)
+                    self.assertIn(b'<h3>Maple Cafe</h3>', response.data)
+                    self.assertIn(b'Showing 1 of 1 listings', response.data)
+                    self.assertNotIn(b'<h3>Pending Workshop</h3>', response.data)
+                    self.assertNotIn(b'<h3>Other Shop</h3>', response.data)
+
 
 class EventTests(unittest.TestCase):
     def setUp(self):
@@ -1005,9 +1022,15 @@ class EventTests(unittest.TestCase):
     def test_add_event_button_precedes_date_order_heading(self):
         response = self.client.get('/events')
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'<div class="event-add-action">', response.data)
+        self.assertIn(b'<section class="hero">', response.data)
+        hero = response.data.split(b'<section class="hero">', 1)[1].split(b'</section>', 1)[0]
+        self.assertIn(b'<h1>Find local events, activities, and things to do in your community.</h1>', hero)
+        self.assertNotIn(b'Supporting Local Communities Through Community Advertising', hero)
+        self.assertNotIn(b'Discover, share, and support local businesses and services', hero)
+        self.assertNotIn(b'View Upcoming Events', hero)
+        self.assertNotIn(b'hero-events-description', hero)
         self.assertIn(b'Upcoming Events by Date', response.data)
-        self.assertLess(response.data.index(b'<div class="event-add-action">'), response.data.index(b'Upcoming Events by Date'))
+        self.assertLess(response.data.index(b'>Add an Event</a>'), response.data.index(b'Upcoming Events by Date'))
         self.assertLess(response.data.index(b'aria-label="Filter events by location"'), response.data.index(b'Upcoming Events by Date'))
         self.assertLess(response.data.index(b'Upcoming Events by Date'), response.data.index(b'id="events-list"') if b'id="events-list"' in response.data else response.data.index(b'No upcoming events'))
 

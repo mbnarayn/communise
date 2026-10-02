@@ -1,0 +1,33 @@
+<section class="hero">
+  <div class="hero-copy">
+    {% set is_events = request.endpoint == 'events_page' %}
+    {% if is_events %}
+      <h1>Find local events, activities, and things to do in your community.</h1>
+    {% else %}
+      <h1>Supporting Local Communities Through Community Advertising</h1>
+      <p class="subtitle">Discover, share, and support local businesses and services, through your community's digital noticeboard.</p>
+    {% endif %}
+    <div class="hero-actions">
+      <form class="search-form hero-search{% if is_events %} events-search{% endif %}" method="GET" action="{{ url_for('events_page' if is_events else pagination_endpoint) }}">
+        {% if is_events and selected_community != 'all' %}<input type="hidden" name="community" value="{{ selected_community }}" />{% endif %}
+        <input type="search" name="q" value="{{ query or '' }}" placeholder="Search {{ 'Events' if is_events else 'Listings' }}" aria-label="Search {{ 'events' if is_events else 'listings' }}" />
+        <button type="submit" class="secondary-btn">Search</button>
+        {% if is_events and query %}
+          <a class="clear-search" href="{{ url_for('events_page', community=selected_community) if selected_community != 'all' else url_for('events_page') }}">Clear</a>
+        {% elif not is_events and (query or category and category != 'All') %}
+          <a class="clear-search" href="{{ url_for(pagination_endpoint, category=category) if category and category != 'All' else url_for(pagination_endpoint) }}">Clear</a>
+        {% endif %}
+      </form>
+      <a class="hero-cta" href="{{ url_for('add_event' if is_events else 'add_listing') }}">{{ 'Add an Event' if is_events else 'Add Your Listing' }}</a>
+    </div>
+    {% if not is_events %}
+      <p class="hero-events-description">Find local events, activities, and things to do in your community.</p>
+      <div class="hero-event-action">
+        <a class="hero-cta hero-event-cta" href="{{ url_for('events_page') }}">View Upcoming Events</a>
+      </div>
+    {% endif %}
+    <div class="hero-install-row">
+      {% include "_install_button.html" %}
+    </div>
+  </div>
+</section>
