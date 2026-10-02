@@ -1749,7 +1749,7 @@ select {
 
   .hero-actions {
     align-items: center;
-    flex-direction: row;
+    flex-direction: column;
     flex-wrap: wrap;
     gap: 0.4rem;
     margin-top: 0.45rem;
@@ -1759,7 +1759,7 @@ select {
   .hero-search {
     display: flex;
     align-items: center;
-    flex: 1 1 170px;
+    flex: 0 0 auto;
     width: min(100%, 260px);
     max-width: 260px;
     height: 32px;
