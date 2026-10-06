@@ -897,6 +897,7 @@ class AppTests(unittest.TestCase):
         self.assertNotIn(b'<script>alert(', response.data)
         stylesheet = (Path(app.static_folder) / 'styles.css').read_text(encoding='utf-8')
         self.assertRegex(stylesheet, r'\.detail-additional-information\s*\{\s*white-space:\s*pre-wrap;\s*\}')
+        self.assertRegex(stylesheet, r'\.detail-callout\s*\{[^}]*background:\s*#fff;')
         self.assertRegex(
             stylesheet,
             r'\.detail-description,\s*\.detail-callout \.detail-additional-information\s*\{'

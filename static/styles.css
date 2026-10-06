@@ -1255,7 +1255,7 @@ select {
   margin-top: 0.48rem;
   margin-right: 0.28rem;
   vertical-align: top;
-  background: var(--accent);
+  background: #fff;
 }
 
 .detail-callout.accent {
