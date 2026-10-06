@@ -1201,9 +1201,6 @@ select {
 }
 
 .detail-description {
-  font-size: 0.76rem;
-  color: var(--muted);
-  line-height: 1.45;
   margin: 0 0 0.72rem;
 }
 
@@ -1239,6 +1236,17 @@ select {
   font-size: 0.69rem;
   color: var(--text);
   overflow-wrap: anywhere;
+}
+
+.detail-description,
+.detail-callout .detail-additional-information {
+  font-size: 0.76rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.detail-additional-information {
+  white-space: pre-wrap;
 }
 
 .detail-callout {

@@ -54,6 +54,21 @@ class AppTests(unittest.TestCase):
         self.assertLess(response.data.index(b'>Add Your Listing</a>'), response.data.index(b'data-install-communise'))
         self.assertIn(b'<div class="hero-install-row">', response.data)
 
+    def test_home_page_share_image_uses_absolute_url(self):
+        response = self.client.get('/', base_url='https://communise.xyz')
+        image_url = b'https://communise.xyz/static/communise-share-small.png'
+        self.assertIn(b'<meta property="og:image" content="' + image_url + b'" />', response.data)
+        self.assertIn(b'<meta property="og:image:alt" content="Communise logo" />', response.data)
+        self.assertIn(b'<meta name="twitter:image" content="' + image_url + b'" />', response.data)
+        self.assertIn(b'<img src="/static/communise_logo.png" alt="Communise logo" />', response.data)
+        image_response = self.client.get('/static/communise-share-small.png')
+        self.assertEqual(image_response.status_code, 200)
+        self.assertEqual(image_response.mimetype, 'image/png')
+        original_image = (Path(app.static_folder) / 'communise_logo.png').read_bytes()
+        self.assertTrue(image_response.data.startswith(b'\x89PNG\r\n\x1a\n'))
+        self.assertEqual(image_response.data[16:24], original_image[16:24])
+        image_response.close()
+
     def test_home_hero_events_button_is_centered_below_primary_actions(self):
         response = self.client.get('/')
         self.assertIn(
@@ -848,6 +863,45 @@ class AppTests(unittest.TestCase):
             b'field-icon-hours', b'field-icon-details', b'field-icon-offers',
         ):
             self.assertIn(icon, response.data)
+
+    def test_listing_share_metadata_uses_small_logo_for_id_and_slug_links(self):
+        listing = {**get_seed_data()[0], 'name': 'JRDA', 'description': 'Classes & community activities.'}
+        image_url = b'https://communise.xyz/static/communise-share-small.png'
+        with patch('app.load_listings', return_value=[listing]), patch('app.save_listings'):
+            for path in (f"/listing/{listing['id']}", '/listing/jrda'):
+                with self.subTest(path=path):
+                    response = self.client.get(path, base_url='https://communise.xyz')
+                    self.assertEqual(response.status_code, 200)
+                    self.assertIn(b'<meta property="og:title" content="JRDA | Communise" />', response.data)
+                    self.assertIn(
+                        b'<meta property="og:description" content="Classes &amp; community activities." />',
+                        response.data,
+                    )
+                    self.assertIn(
+                        f'<meta property="og:url" content="https://communise.xyz{path}" />'.encode(),
+                        response.data,
+                    )
+                    self.assertIn(b'<meta property="og:image" content="' + image_url + b'" />', response.data)
+                    self.assertIn(b'<meta name="twitter:image" content="' + image_url + b'" />', response.data)
+
+    def test_listing_more_details_preserves_whitespace_and_escapes_html(self):
+        details = 'First paragraph.\n\nSecond paragraph.\n  Indented line.\n<script>alert("test")</script>'
+        listing = {**get_seed_data()[0], 'additional_information': details}
+        with patch('app.load_listings', return_value=[listing]), patch('app.save_listings'):
+            response = self.client.get(f"/listing/{listing['id']}")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            b'<p class="detail-additional-information">First paragraph.\n\nSecond paragraph.\n  Indented line.\n&lt;script&gt;',
+            response.data,
+        )
+        self.assertNotIn(b'<script>alert(', response.data)
+        stylesheet = (Path(app.static_folder) / 'styles.css').read_text(encoding='utf-8')
+        self.assertRegex(stylesheet, r'\.detail-additional-information\s*\{\s*white-space:\s*pre-wrap;\s*\}')
+        self.assertRegex(
+            stylesheet,
+            r'\.detail-description,\s*\.detail-callout \.detail-additional-information\s*\{'
+            r'\s*font-size:\s*0\.76rem;\s*color:\s*var\(--muted\);\s*line-height:\s*1\.45;\s*\}',
+        )
 
     def test_logo_fallback_uses_first_two_initials_and_stable_color(self):
         from app import listing_fallback_color, listing_initials

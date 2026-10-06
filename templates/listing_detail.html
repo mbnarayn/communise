@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     {% include "_pwa_metadata.html" %}
     <title>{{ listing.name }} | Communise</title>
+    <meta name="description" content="{{ listing.description or '' }}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="{{ listing.name }} | Communise" />
+    <meta property="og:description" content="{{ listing.description or '' }}" />
+    <meta property="og:url" content="{{ request.base_url }}" />
+    <meta property="og:image" content="{{ url_for('static', filename='communise-share-small.png', _external=True) }}" />
+    <meta property="og:image:alt" content="Communise logo" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="{{ listing.name }} | Communise" />
+    <meta name="twitter:description" content="{{ listing.description or '' }}" />
+    <meta name="twitter:image" content="{{ url_for('static', filename='communise-share-small.png', _external=True) }}" />
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='favicon.jpg') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
   </head>
@@ -153,7 +164,7 @@
             {% if listing.additional_information %}
               <div class="detail-callout">
                 <strong><span class="field-label"><svg class="field-icon" aria-hidden="true"><use href="#field-icon-details"></use></svg>More Details</span></strong>
-                <p>{{ listing.additional_information }}</p>
+                <p class="detail-additional-information">{{ listing.additional_information }}</p>
               </div>
             {% endif %}
 
